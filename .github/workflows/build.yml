@@ -243,36 +243,56 @@ jobs:
                   android:format12Hour="HH:mm:ss"
                   android:format24Hour="HH:mm:ss"
                   android:includeFontPadding="false"
-                  android:textColor="#C5C8FF"
-                  android:textSize="28sp" />
+                  android:maxLines="1"
+                  android:textColor="#FFFFFF"
+                  android:textSize="26sp" />
 
               <LinearLayout
                   android:layout_width="wrap_content"
                   android:layout_height="wrap_content"
-                  android:layout_marginStart="12dp"
+                  android:layout_marginStart="10dp"
                   android:gravity="start"
                   android:orientation="vertical">
 
-                  <!-- 2026年11月15日，週日 -->
+                  <!-- 第一行：2026年11月15日 -->
                   <TextClock
                       android:layout_width="wrap_content"
                       android:layout_height="wrap_content"
-                      android:format12Hour="yyyy年M月d日，E"
-                      android:format24Hour="yyyy年M月d日，E"
+                      android:format12Hour="yyyy年M月d日"
+                      android:format24Hour="yyyy年M月d日"
                       android:includeFontPadding="false"
-                      android:textColor="#C5C8FF"
+                      android:maxLines="1"
+                      android:textColor="#FFFFFF"
                       android:textSize="12sp" />
 
-                  <!-- 丙午年 十月初七 -->
-                  <TextView
-                      android:id="@+id/lunar_text"
+                  <!-- 第二行：星期日  丙午年 十月初七 -->
+                  <LinearLayout
                       android:layout_width="wrap_content"
                       android:layout_height="wrap_content"
                       android:layout_marginTop="2dp"
-                      android:includeFontPadding="false"
-                      android:text="丙午年 十月初七"
-                      android:textColor="#C5C8FF"
-                      android:textSize="12sp" />
+                      android:orientation="horizontal">
+
+                      <TextClock
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
+                          android:format12Hour="EEEE"
+                          android:format24Hour="EEEE"
+                          android:includeFontPadding="false"
+                          android:maxLines="1"
+                          android:textColor="#FFFFFF"
+                          android:textSize="12sp" />
+
+                      <TextView
+                          android:id="@+id/lunar_text"
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
+                          android:layout_marginStart="6dp"
+                          android:includeFontPadding="false"
+                          android:maxLines="1"
+                          android:text="丙午年 十月初七"
+                          android:textColor="#FFFFFF"
+                          android:textSize="12sp" />
+                  </LinearLayout>
               </LinearLayout>
           </LinearLayout>
           LUNAR_EOF
