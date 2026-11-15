@@ -1,0 +1,342 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate project files
+        run: |
+          mkdir -p app
+          cat > app/build.gradle.kts <<'LUNAR_EOF'
+          plugins {
+              id("com.android.application")
+              id("org.jetbrains.kotlin.android")
+          }
+
+          android {
+              namespace = "com.example.lunarclock"
+              compileSdk = 35
+
+              defaultConfig {
+                  applicationId = "com.example.lunarclock"
+                  minSdk = 26
+                  targetSdk = 35
+                  versionCode = 1
+                  versionName = "1.0"
+              }
+
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+              kotlinOptions {
+                  jvmTarget = "17"
+              }
+          }
+          LUNAR_EOF
+          mkdir -p app/src/main
+          cat > app/src/main/AndroidManifest.xml <<'LUNAR_EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+              <application
+                  android:allowBackup="true"
+                  android:icon="@drawable/ic_launcher"
+                  android:label="@string/app_name"
+                  android:theme="@android:style/Theme.DeviceDefault.Light">
+
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+
+                  <receiver
+                      android:name=".LunarClockWidget"
+                      android:exported="true"
+                      android:label="@string/app_name">
+                      <intent-filter>
+                          <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                          <action android:name="android.intent.action.DATE_CHANGED" />
+                          <action android:name="android.intent.action.TIME_SET" />
+                          <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                      </intent-filter>
+                      <meta-data
+                          android:name="android.appwidget.provider"
+                          android:resource="@xml/widget_lunar_clock_info" />
+                  </receiver>
+              </application>
+          </manifest>
+          LUNAR_EOF
+          mkdir -p app/src/main/java/com/example/lunarclock
+          cat > app/src/main/java/com/example/lunarclock/LunarClockWidget.kt <<'LUNAR_EOF'
+          package com.example.lunarclock
+
+          import android.app.PendingIntent
+          import android.appwidget.AppWidgetManager
+          import android.appwidget.AppWidgetProvider
+          import android.content.Context
+          import android.content.Intent
+          import android.icu.util.ChineseCalendar
+          import android.provider.AlarmClock
+          import android.widget.RemoteViews
+          import java.util.Locale
+
+          /**
+           * 時鐘 Widget：
+           * - 時間（含秒）與西曆日期由 layout 內的 TextClock 自行每秒更新，不耗電。
+           * - 農曆（丙午年 十月初七）由這裡計算，日期變更 / 校時 / 換時區時重新更新。
+           */
+          class LunarClockWidget : AppWidgetProvider() {
+
+              override fun onUpdate(
+                  context: Context,
+                  appWidgetManager: AppWidgetManager,
+                  appWidgetIds: IntArray
+              ) {
+                  for (id in appWidgetIds) {
+                      appWidgetManager.updateAppWidget(id, buildViews(context))
+                  }
+              }
+
+              override fun onReceive(context: Context, intent: Intent) {
+                  super.onReceive(context, intent)
+                  when (intent.action) {
+                      Intent.ACTION_DATE_CHANGED,
+                      Intent.ACTION_TIME_CHANGED,
+                      Intent.ACTION_TIMEZONE_CHANGED -> {
+                          val manager = AppWidgetManager.getInstance(context)
+                          val ids = manager.getAppWidgetIds(
+                              android.content.ComponentName(context, LunarClockWidget::class.java)
+                          )
+                          onUpdate(context, manager, ids)
+                      }
+                  }
+              }
+
+              private fun buildViews(context: Context): RemoteViews {
+                  val views = RemoteViews(context.packageName, R.layout.widget_lunar_clock)
+                  views.setTextViewText(R.id.lunar_text, lunarString())
+
+                  // 點一下 widget 開啟時鐘 / 鬧鐘 App
+                  val intent = Intent(AlarmClock.ACTION_SHOW_ALARMS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                  val pi = PendingIntent.getActivity(
+                      context, 0, intent,
+                      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                  )
+                  views.setOnClickPendingIntent(R.id.widget_root, pi)
+                  return views
+              }
+
+              companion object {
+                  private const val STEMS = "甲乙丙丁戊己庚辛壬癸"
+                  private const val BRANCHES = "子丑寅卯辰巳午未申酉戌亥"
+                  private val MONTHS = arrayOf(
+                      "正月", "二月", "三月", "四月", "五月", "六月",
+                      "七月", "八月", "九月", "十月", "十一月", "十二月"
+                  )
+                  private val DAY_TENS = arrayOf("初", "十", "廿", "三")
+                  private const val DAY_ONES = "十一二三四五六七八九"
+
+                  /** 例如：丙午年 十月初七 */
+                  fun lunarString(): String {
+                      val cal = ChineseCalendar(Locale.TAIWAN)
+                      cal.timeInMillis = System.currentTimeMillis()
+
+                      // ChineseCalendar.YEAR = 60 甲子循環中的第幾年 (1..60)
+                      val idx = cal.get(ChineseCalendar.YEAR) - 1
+                      val ganZhi = "${STEMS[idx % 10]}${BRANCHES[idx % 12]}年"
+
+                      val leap = if (cal.get(ChineseCalendar.IS_LEAP_MONTH) == 1) "閏" else ""
+                      val month = leap + MONTHS[cal.get(ChineseCalendar.MONTH)]
+                      return "$ganZhi $month${dayName(cal.get(ChineseCalendar.DAY_OF_MONTH))}"
+                  }
+
+                  private fun dayName(d: Int): String = when (d) {
+                      10 -> "初十"
+                      20 -> "二十"
+                      30 -> "三十"
+                      else -> DAY_TENS[d / 10] + DAY_ONES[d % 10]
+                  }
+              }
+          }
+          LUNAR_EOF
+          mkdir -p app/src/main/java/com/example/lunarclock
+          cat > app/src/main/java/com/example/lunarclock/MainActivity.kt <<'LUNAR_EOF'
+          package com.example.lunarclock
+
+          import android.app.Activity
+          import android.os.Bundle
+          import android.view.Gravity
+          import android.widget.TextView
+
+          /** 只是一個說明畫面，讓 App 有桌面圖示；真正的功能在 widget。 */
+          class MainActivity : Activity() {
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  val tv = TextView(this).apply {
+                      text = "長按桌面空白處 → 小工具 → 找「農曆時鐘」加入桌面"
+                      textSize = 18f
+                      gravity = Gravity.CENTER
+                      setPadding(64, 64, 64, 64)
+                  }
+                  setContentView(tv)
+              }
+          }
+          LUNAR_EOF
+          mkdir -p app/src/main/res/drawable
+          cat > app/src/main/res/drawable/ic_launcher.xml <<'LUNAR_EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="108"
+              android:viewportHeight="108">
+              <path
+                  android:fillColor="#1C1C1C"
+                  android:pathData="M0,0h108v108h-108z" />
+              <path
+                  android:fillColor="#C5C8FF"
+                  android:pathData="M54,24a30,30 0,1 0,0.001 0zM54,32a22,22 0,1 1,-0.001 0z" />
+              <path
+                  android:fillColor="#C5C8FF"
+                  android:pathData="M52,40h4v16h12v4h-16z" />
+          </vector>
+          LUNAR_EOF
+          mkdir -p app/src/main/res/drawable
+          cat > app/src/main/res/drawable/widget_bg.xml <<'LUNAR_EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <shape xmlns:android="http://schemas.android.com/apk/res/android"
+              android:shape="rectangle">
+              <solid android:color="#1C1C1C" />
+              <corners android:radius="28dp" />
+          </shape>
+          LUNAR_EOF
+          mkdir -p app/src/main/res/layout
+          cat > app/src/main/res/layout/widget_lunar_clock.xml <<'LUNAR_EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:id="@+id/widget_root"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:background="@drawable/widget_bg"
+              android:gravity="center"
+              android:orientation="vertical"
+              android:padding="12dp">
+
+              <!-- 20:38:31（TextClock 自己每秒更新） -->
+              <TextClock
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:format12Hour="HH:mm:ss"
+                  android:format24Hour="HH:mm:ss"
+                  android:includeFontPadding="false"
+                  android:textColor="#C5C8FF"
+                  android:textSize="44sp" />
+
+              <!-- 2026年11月15日，週日 -->
+              <TextClock
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:layout_marginTop="4dp"
+                  android:format12Hour="yyyy年M月d日，E"
+                  android:format24Hour="yyyy年M月d日，E"
+                  android:includeFontPadding="false"
+                  android:textColor="#C5C8FF"
+                  android:textSize="16sp" />
+
+              <!-- 丙午年 十月初七 -->
+              <TextView
+                  android:id="@+id/lunar_text"
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:layout_marginTop="2dp"
+                  android:includeFontPadding="false"
+                  android:text="丙午年 十月初七"
+                  android:textColor="#C5C8FF"
+                  android:textSize="16sp" />
+          </LinearLayout>
+          LUNAR_EOF
+          mkdir -p app/src/main/res/values
+          cat > app/src/main/res/values/strings.xml <<'LUNAR_EOF'
+          <resources>
+              <string name="app_name">農曆時鐘</string>
+              <string name="widget_description">顯示時間（含秒）、西曆日期與農曆</string>
+          </resources>
+          LUNAR_EOF
+          mkdir -p app/src/main/res/xml
+          cat > app/src/main/res/xml/widget_lunar_clock_info.xml <<'LUNAR_EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+              android:description="@string/widget_description"
+              android:initialLayout="@layout/widget_lunar_clock"
+              android:minWidth="250dp"
+              android:minHeight="110dp"
+              android:minResizeWidth="180dp"
+              android:minResizeHeight="90dp"
+              android:resizeMode="horizontal|vertical"
+              android:targetCellWidth="4"
+              android:targetCellHeight="2"
+              android:updatePeriodMillis="1800000"
+              android:widgetCategory="home_screen" />
+          LUNAR_EOF
+          cat > build.gradle.kts <<'LUNAR_EOF'
+          plugins {
+              id("com.android.application") version "8.7.3" apply false
+              id("org.jetbrains.kotlin.android") version "2.0.21" apply false
+          }
+          LUNAR_EOF
+          cat > gradle.properties <<'LUNAR_EOF'
+          org.gradle.jvmargs=-Xmx2g -Dfile.encoding=UTF-8
+          android.nonTransitiveRClass=true
+          LUNAR_EOF
+          cat > settings.gradle.kts <<'LUNAR_EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "LunarClock"
+          include(":app")
+          LUNAR_EOF
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.9
+
+      - name: Build debug APK
+        run: gradle assembleDebug --no-daemon
+
+      - name: Rename APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk lunar-clock.apk
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          name: Lunar Clock v${{ github.run_number }}
+          files: lunar-clock.apk
