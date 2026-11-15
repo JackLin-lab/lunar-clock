@@ -220,7 +220,7 @@ jobs:
           <shape xmlns:android="http://schemas.android.com/apk/res/android"
               android:shape="rectangle">
               <solid android:color="#1C1C1C" />
-              <corners android:radius="28dp" />
+              <corners android:radius="22dp" />
           </shape>
           LUNAR_EOF
           mkdir -p app/src/main/res/layout
@@ -232,8 +232,9 @@ jobs:
               android:layout_height="match_parent"
               android:background="@drawable/widget_bg"
               android:gravity="center"
-              android:orientation="vertical"
-              android:padding="12dp">
+              android:orientation="horizontal"
+              android:paddingHorizontal="12dp"
+              android:paddingVertical="6dp">
 
               <!-- 20:38:31（TextClock 自己每秒更新） -->
               <TextClock
@@ -243,29 +244,36 @@ jobs:
                   android:format24Hour="HH:mm:ss"
                   android:includeFontPadding="false"
                   android:textColor="#C5C8FF"
-                  android:textSize="44sp" />
+                  android:textSize="28sp" />
 
-              <!-- 2026年11月15日，週日 -->
-              <TextClock
+              <LinearLayout
                   android:layout_width="wrap_content"
                   android:layout_height="wrap_content"
-                  android:layout_marginTop="4dp"
-                  android:format12Hour="yyyy年M月d日，E"
-                  android:format24Hour="yyyy年M月d日，E"
-                  android:includeFontPadding="false"
-                  android:textColor="#C5C8FF"
-                  android:textSize="16sp" />
+                  android:layout_marginStart="12dp"
+                  android:gravity="start"
+                  android:orientation="vertical">
 
-              <!-- 丙午年 十月初七 -->
-              <TextView
-                  android:id="@+id/lunar_text"
-                  android:layout_width="wrap_content"
-                  android:layout_height="wrap_content"
-                  android:layout_marginTop="2dp"
-                  android:includeFontPadding="false"
-                  android:text="丙午年 十月初七"
-                  android:textColor="#C5C8FF"
-                  android:textSize="16sp" />
+                  <!-- 2026年11月15日，週日 -->
+                  <TextClock
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:format12Hour="yyyy年M月d日，E"
+                      android:format24Hour="yyyy年M月d日，E"
+                      android:includeFontPadding="false"
+                      android:textColor="#C5C8FF"
+                      android:textSize="12sp" />
+
+                  <!-- 丙午年 十月初七 -->
+                  <TextView
+                      android:id="@+id/lunar_text"
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:layout_marginTop="2dp"
+                      android:includeFontPadding="false"
+                      android:text="丙午年 十月初七"
+                      android:textColor="#C5C8FF"
+                      android:textSize="12sp" />
+              </LinearLayout>
           </LinearLayout>
           LUNAR_EOF
           mkdir -p app/src/main/res/values
@@ -282,12 +290,12 @@ jobs:
               android:description="@string/widget_description"
               android:initialLayout="@layout/widget_lunar_clock"
               android:minWidth="250dp"
-              android:minHeight="110dp"
+              android:minHeight="40dp"
               android:minResizeWidth="180dp"
-              android:minResizeHeight="90dp"
+              android:minResizeHeight="40dp"
               android:resizeMode="horizontal|vertical"
               android:targetCellWidth="4"
-              android:targetCellHeight="2"
+              android:targetCellHeight="1"
               android:updatePeriodMillis="1800000"
               android:widgetCategory="home_screen" />
           LUNAR_EOF
