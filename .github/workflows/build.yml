@@ -90,6 +90,7 @@ jobs:
           import android.content.Intent
           import android.icu.util.ChineseCalendar
           import android.provider.AlarmClock
+          import android.view.View
           import android.widget.RemoteViews
           import java.util.Locale
 
@@ -129,6 +130,11 @@ jobs:
                   val views = RemoteViews(context.packageName, R.layout.widget_lunar_clock)
                   views.setTextViewText(R.id.lunar_text, lunarString())
 
+                  // 十齋日：顯示閃爍的「吃素」（ViewFlipper 每 0.5 秒切換一次），其餘日子顯示一般星期
+                  val fast = isVegetarianDay()
+                  views.setViewVisibility(R.id.weekday_plain, if (fast) View.GONE else View.VISIBLE)
+                  views.setViewVisibility(R.id.fast_flipper, if (fast) View.VISIBLE else View.GONE)
+
                   // 點一下 widget 開啟時鐘 / 鬧鐘 App
                   val intent = Intent(AlarmClock.ACTION_SHOW_ALARMS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                   val pi = PendingIntent.getActivity(
@@ -161,6 +167,22 @@ jobs:
                       val leap = if (cal.get(ChineseCalendar.IS_LEAP_MONTH) == 1) "閏" else ""
                       val month = leap + MONTHS[cal.get(ChineseCalendar.MONTH)]
                       return "$ganZhi $month${dayName(cal.get(ChineseCalendar.DAY_OF_MONTH))}"
+                  }
+
+                  /**
+                   * 十齋日：農曆初一、初八、十四、十五、十八、二十三、二十四、二十八、二十九、三十。
+                   * 小月（只有 29 天）時，最後三天改為二十七、二十八、二十九。
+                   */
+                  fun isVegetarianDay(): Boolean {
+                      val cal = ChineseCalendar(Locale.TAIWAN)
+                      cal.timeInMillis = System.currentTimeMillis()
+                      val day = cal.get(ChineseCalendar.DAY_OF_MONTH)
+                      val maxDay = cal.getActualMaximum(ChineseCalendar.DAY_OF_MONTH)
+                      val days = if (maxDay >= 30)
+                          setOf(1, 8, 14, 15, 18, 23, 24, 28, 29, 30)
+                      else
+                          setOf(1, 8, 14, 15, 18, 23, 24, 27, 28, 29)
+                      return day in days
                   }
 
                   private fun dayName(d: Int): String = when (d) {
@@ -266,17 +288,85 @@ jobs:
                       android:textColor="#FFFFFF"
                       android:textSize="12sp" />
 
-                  <!-- 第二行：星期一 -->
-                  <TextClock
+                  <!-- 第二行：星期一（十齋日改顯示閃爍的「星期一  吃素」） -->
+                  <FrameLayout
                       android:layout_width="wrap_content"
                       android:layout_height="wrap_content"
-                      android:layout_marginTop="1dp"
-                      android:format12Hour="EEEE"
-                      android:format24Hour="EEEE"
-                      android:includeFontPadding="false"
-                      android:maxLines="1"
-                      android:textColor="#FFFFFF"
-                      android:textSize="12sp" />
+                      android:layout_marginTop="1dp">
+
+                      <TextClock
+                          android:id="@+id/weekday_plain"
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
+                          android:format12Hour="EEEE"
+                          android:format24Hour="EEEE"
+                          android:includeFontPadding="false"
+                          android:maxLines="1"
+                          android:textColor="#FFFFFF"
+                          android:textSize="12sp" />
+
+                      <ViewFlipper
+                          android:id="@+id/fast_flipper"
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
+                          android:autoStart="true"
+                          android:flipInterval="500"
+                          android:visibility="gone">
+
+                          <!-- 亮：顯示吃素 -->
+                          <LinearLayout
+                              android:layout_width="wrap_content"
+                              android:layout_height="wrap_content"
+                              android:orientation="horizontal">
+
+                              <TextClock
+                                  android:layout_width="wrap_content"
+                                  android:layout_height="wrap_content"
+                                  android:format12Hour="EEEE"
+                                  android:format24Hour="EEEE"
+                                  android:includeFontPadding="false"
+                                  android:maxLines="1"
+                                  android:textColor="#FFFFFF"
+                                  android:textSize="12sp" />
+
+                              <TextView
+                                  android:layout_width="wrap_content"
+                                  android:layout_height="wrap_content"
+                                  android:includeFontPadding="false"
+                                  android:maxLines="1"
+                                  android:text="&#160;&#160;吃素"
+                                  android:textColor="#FFFFFF"
+                                  android:textSize="12sp" />
+                          </LinearLayout>
+
+                          <!-- 滅：吃素隱藏（保留位置，版面不跳動） -->
+                          <LinearLayout
+                              android:layout_width="wrap_content"
+                              android:layout_height="wrap_content"
+                              android:orientation="horizontal">
+
+                              <TextClock
+                                  android:layout_width="wrap_content"
+                                  android:layout_height="wrap_content"
+                                  android:format12Hour="EEEE"
+                                  android:format24Hour="EEEE"
+                                  android:includeFontPadding="false"
+                                  android:maxLines="1"
+                                  android:textColor="#FFFFFF"
+                                  android:textSize="12sp" />
+
+                              <TextView
+                                  android:layout_width="wrap_content"
+                                  android:layout_height="wrap_content"
+                                  android:includeFontPadding="false"
+                                  android:maxLines="1"
+                                  android:text="&#160;&#160;吃素"
+                                  android:textColor="#FFFFFF"
+                                  android:textSize="12sp"
+                                  android:visibility="invisible" />
+                          </LinearLayout>
+                      </ViewFlipper>
+                  </FrameLayout>
 
                   <!-- 第三行：丙午年 十月初八 -->
                   <TextView
