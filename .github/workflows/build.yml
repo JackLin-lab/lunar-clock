@@ -236,7 +236,7 @@ jobs:
               android:paddingHorizontal="12dp"
               android:paddingVertical="6dp">
 
-              <!-- 20:38:31（TextClock 自己每秒更新） -->
+              <!-- 20:38:31（粗體，TextClock 自己每秒更新） -->
               <TextClock
                   android:layout_width="wrap_content"
                   android:layout_height="wrap_content"
@@ -245,16 +245,17 @@ jobs:
                   android:includeFontPadding="false"
                   android:maxLines="1"
                   android:textColor="#FFFFFF"
-                  android:textSize="26sp" />
+                  android:textSize="28sp"
+                  android:textStyle="bold" />
 
               <LinearLayout
                   android:layout_width="wrap_content"
                   android:layout_height="wrap_content"
-                  android:layout_marginStart="10dp"
+                  android:layout_marginStart="12dp"
                   android:gravity="start"
                   android:orientation="vertical">
 
-                  <!-- 第一行：2026年11月15日 -->
+                  <!-- 第一行：2026年11月16日 -->
                   <TextClock
                       android:layout_width="wrap_content"
                       android:layout_height="wrap_content"
@@ -265,34 +266,29 @@ jobs:
                       android:textColor="#FFFFFF"
                       android:textSize="12sp" />
 
-                  <!-- 第二行：星期日  丙午年 十月初七 -->
-                  <LinearLayout
+                  <!-- 第二行：星期一 -->
+                  <TextClock
                       android:layout_width="wrap_content"
                       android:layout_height="wrap_content"
-                      android:layout_marginTop="2dp"
-                      android:orientation="horizontal">
+                      android:layout_marginTop="1dp"
+                      android:format12Hour="EEEE"
+                      android:format24Hour="EEEE"
+                      android:includeFontPadding="false"
+                      android:maxLines="1"
+                      android:textColor="#FFFFFF"
+                      android:textSize="12sp" />
 
-                      <TextClock
-                          android:layout_width="wrap_content"
-                          android:layout_height="wrap_content"
-                          android:format12Hour="EEEE"
-                          android:format24Hour="EEEE"
-                          android:includeFontPadding="false"
-                          android:maxLines="1"
-                          android:textColor="#FFFFFF"
-                          android:textSize="12sp" />
-
-                      <TextView
-                          android:id="@+id/lunar_text"
-                          android:layout_width="wrap_content"
-                          android:layout_height="wrap_content"
-                          android:layout_marginStart="6dp"
-                          android:includeFontPadding="false"
-                          android:maxLines="1"
-                          android:text="丙午年 十月初七"
-                          android:textColor="#FFFFFF"
-                          android:textSize="12sp" />
-                  </LinearLayout>
+                  <!-- 第三行：丙午年 十月初八 -->
+                  <TextView
+                      android:id="@+id/lunar_text"
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:layout_marginTop="1dp"
+                      android:includeFontPadding="false"
+                      android:maxLines="1"
+                      android:text="丙午年 十月初八"
+                      android:textColor="#FFFFFF"
+                      android:textSize="12sp" />
               </LinearLayout>
           </LinearLayout>
           LUNAR_EOF
