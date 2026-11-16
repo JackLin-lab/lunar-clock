@@ -128,11 +128,14 @@ jobs:
 
               private fun buildViews(context: Context): RemoteViews {
                   val views = RemoteViews(context.packageName, R.layout.widget_lunar_clock)
-                  views.setTextViewText(R.id.lunar_text, lunarString())
+                  val lunar = lunarString()
+                  views.setTextViewText(R.id.lunar_text, lunar)
+                  views.setTextViewText(R.id.lunar_blink_on, lunar)
+                  views.setTextViewText(R.id.lunar_blink_off, lunar)
 
-                  // 十齋日：顯示閃爍的「吃素」（ViewFlipper 每 0.5 秒切換一次），其餘日子顯示一般星期
+                  // 十齋日：農曆那一行每 0.5 秒閃爍（ViewFlipper 切換），其餘日子正常顯示
                   val fast = isVegetarianDay()
-                  views.setViewVisibility(R.id.weekday_plain, if (fast) View.GONE else View.VISIBLE)
+                  views.setViewVisibility(R.id.lunar_text, if (fast) View.GONE else View.VISIBLE)
                   views.setViewVisibility(R.id.fast_flipper, if (fast) View.VISIBLE else View.GONE)
 
                   // 點一下 widget 開啟時鐘 / 鬧鐘 App
@@ -288,20 +291,31 @@ jobs:
                       android:textColor="#FFFFFF"
                       android:textSize="12sp" />
 
-                  <!-- 第二行：星期一（十齋日改顯示閃爍的「星期一  吃素」） -->
+                  <!-- 第二行：星期一 -->
+                  <TextClock
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:layout_marginTop="1dp"
+                      android:format12Hour="EEEE"
+                      android:format24Hour="EEEE"
+                      android:includeFontPadding="false"
+                      android:maxLines="1"
+                      android:textColor="#FFFFFF"
+                      android:textSize="12sp" />
+
+                  <!-- 第三行：丙午年 十月初八（十齋日改為每 0.5 秒閃爍） -->
                   <FrameLayout
                       android:layout_width="wrap_content"
                       android:layout_height="wrap_content"
                       android:layout_marginTop="1dp">
 
-                      <TextClock
-                          android:id="@+id/weekday_plain"
+                      <TextView
+                          android:id="@+id/lunar_text"
                           android:layout_width="wrap_content"
                           android:layout_height="wrap_content"
-                          android:format12Hour="EEEE"
-                          android:format24Hour="EEEE"
                           android:includeFontPadding="false"
                           android:maxLines="1"
+                          android:text="丙午年 十月初八"
                           android:textColor="#FFFFFF"
                           android:textSize="12sp" />
 
@@ -313,72 +327,30 @@ jobs:
                           android:flipInterval="500"
                           android:visibility="gone">
 
-                          <!-- 亮：顯示吃素 -->
-                          <LinearLayout
+                          <!-- 亮 -->
+                          <TextView
+                              android:id="@+id/lunar_blink_on"
                               android:layout_width="wrap_content"
                               android:layout_height="wrap_content"
-                              android:orientation="horizontal">
+                              android:includeFontPadding="false"
+                              android:maxLines="1"
+                              android:text="丙午年 十月初八"
+                              android:textColor="#FFFFFF"
+                              android:textSize="12sp" />
 
-                              <TextClock
-                                  android:layout_width="wrap_content"
-                                  android:layout_height="wrap_content"
-                                  android:format12Hour="EEEE"
-                                  android:format24Hour="EEEE"
-                                  android:includeFontPadding="false"
-                                  android:maxLines="1"
-                                  android:textColor="#FFFFFF"
-                                  android:textSize="12sp" />
-
-                              <TextView
-                                  android:layout_width="wrap_content"
-                                  android:layout_height="wrap_content"
-                                  android:includeFontPadding="false"
-                                  android:maxLines="1"
-                                  android:text="&#160;&#160;吃素"
-                                  android:textColor="#FFFFFF"
-                                  android:textSize="12sp" />
-                          </LinearLayout>
-
-                          <!-- 滅：吃素隱藏（保留位置，版面不跳動） -->
-                          <LinearLayout
+                          <!-- 滅（隱藏但保留位置，版面不跳動） -->
+                          <TextView
+                              android:id="@+id/lunar_blink_off"
                               android:layout_width="wrap_content"
                               android:layout_height="wrap_content"
-                              android:orientation="horizontal">
-
-                              <TextClock
-                                  android:layout_width="wrap_content"
-                                  android:layout_height="wrap_content"
-                                  android:format12Hour="EEEE"
-                                  android:format24Hour="EEEE"
-                                  android:includeFontPadding="false"
-                                  android:maxLines="1"
-                                  android:textColor="#FFFFFF"
-                                  android:textSize="12sp" />
-
-                              <TextView
-                                  android:layout_width="wrap_content"
-                                  android:layout_height="wrap_content"
-                                  android:includeFontPadding="false"
-                                  android:maxLines="1"
-                                  android:text="&#160;&#160;吃素"
-                                  android:textColor="#FFFFFF"
-                                  android:textSize="12sp"
-                                  android:visibility="invisible" />
-                          </LinearLayout>
+                              android:includeFontPadding="false"
+                              android:maxLines="1"
+                              android:text="丙午年 十月初八"
+                              android:textColor="#FFFFFF"
+                              android:textSize="12sp"
+                              android:visibility="invisible" />
                       </ViewFlipper>
                   </FrameLayout>
-
-                  <!-- 第三行：丙午年 十月初八 -->
-                  <TextView
-                      android:id="@+id/lunar_text"
-                      android:layout_width="wrap_content"
-                      android:layout_height="wrap_content"
-                      android:layout_marginTop="1dp"
-                      android:includeFontPadding="false"
-                      android:maxLines="1"
-                      android:text="丙午年 十月初八"
-                      android:textColor="#FFFFFF"
-                      android:textSize="12sp" />
               </LinearLayout>
           </LinearLayout>
           LUNAR_EOF
