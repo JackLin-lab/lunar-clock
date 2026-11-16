@@ -338,7 +338,7 @@ jobs:
                               android:textColor="#FFFFFF"
                               android:textSize="12sp" />
 
-                          <!-- 滅（隱藏但保留位置，版面不跳動） -->
+                          <!-- 滅（文字透明但保留位置，版面不跳動；不能用 invisible，ViewFlipper 會強制改成顯示） -->
                           <TextView
                               android:id="@+id/lunar_blink_off"
                               android:layout_width="wrap_content"
@@ -346,9 +346,8 @@ jobs:
                               android:includeFontPadding="false"
                               android:maxLines="1"
                               android:text="丙午年 十月初八"
-                              android:textColor="#FFFFFF"
-                              android:textSize="12sp"
-                              android:visibility="invisible" />
+                              android:textColor="#00FFFFFF"
+                              android:textSize="12sp" />
                       </ViewFlipper>
                   </FrameLayout>
               </LinearLayout>
