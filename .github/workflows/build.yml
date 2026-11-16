@@ -47,6 +47,13 @@ jobs:
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+              <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+              <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+              <uses-permission
+                  android:name="android.permission.SCHEDULE_EXACT_ALARM"
+                  android:maxSdkVersion="32" />
+              <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+
               <application
                   android:allowBackup="true"
                   android:icon="@drawable/ic_launcher"
@@ -76,8 +83,110 @@ jobs:
                           android:name="android.appwidget.provider"
                           android:resource="@xml/widget_lunar_clock_info" />
                   </receiver>
+
+                  <receiver
+                      android:name=".GreetingReceiver"
+                      android:exported="false">
+                      <intent-filter>
+                          <action android:name="com.example.lunarclock.GREETING" />
+                          <action android:name="android.intent.action.BOOT_COMPLETED" />
+                          <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                      </intent-filter>
+                  </receiver>
               </application>
           </manifest>
+          LUNAR_EOF
+          mkdir -p app/src/main/java/com/example/lunarclock
+          cat > app/src/main/java/com/example/lunarclock/Greeting.kt <<'LUNAR_EOF'
+          package com.example.lunarclock
+
+          import android.app.AlarmManager
+          import android.app.NotificationChannel
+          import android.app.NotificationManager
+          import android.app.PendingIntent
+          import android.content.Context
+          import android.content.Intent
+          import android.app.Notification
+          import android.os.Build
+          import java.util.Calendar
+
+          /** 每年 12/25 08:00 推播「聖誕節快樂！」 */
+          object Greeting {
+              const val ACTION = "com.example.lunarclock.GREETING"
+              private const val CHANNEL_ID = "greeting"
+              private const val TITLE = "聖誕節快樂！"
+
+              /** 下一個 12/25 08:00（已過就排明年） */
+              private fun nextTrigger(): Long {
+                  val c = Calendar.getInstance()
+                  c.set(c.get(Calendar.YEAR), Calendar.DECEMBER, 25, 8, 0, 0)
+                  c.set(Calendar.MILLISECOND, 0)
+                  if (c.timeInMillis <= System.currentTimeMillis()) c.add(Calendar.YEAR, 1)
+                  return c.timeInMillis
+              }
+
+              /** 設定（或重新設定）鬧鐘；重複呼叫不會重複推播 */
+              fun schedule(context: Context) {
+                  val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+                  val intent = Intent(context, GreetingReceiver::class.java).setAction(ACTION)
+                  val pi = PendingIntent.getBroadcast(
+                      context, 0, intent,
+                      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                  )
+                  val at = nextTrigger()
+                  try {
+                      if (Build.VERSION.SDK_INT >= 31 && !am.canScheduleExactAlarms()) {
+                          am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi)
+                      } else {
+                          am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi)
+                      }
+                  } catch (e: SecurityException) {
+                      am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi)
+                  }
+              }
+
+              /** 立刻顯示通知 */
+              fun show(context: Context) {
+                  val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                  nm.createNotificationChannel(
+                      NotificationChannel(CHANNEL_ID, "節日問候", NotificationManager.IMPORTANCE_HIGH)
+                  )
+                  val tap = PendingIntent.getActivity(
+                      context, 1, Intent(context, MainActivity::class.java),
+                      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                  )
+                  val n = Notification.Builder(context, CHANNEL_ID)
+                      .setSmallIcon(R.drawable.ic_notify)
+                      .setContentTitle(TITLE)
+                      .setContentText("🎄")
+                      .setContentIntent(tap)
+                      .setAutoCancel(true)
+                      .build()
+                  nm.notify(2025, n)
+              }
+          }
+          LUNAR_EOF
+          mkdir -p app/src/main/java/com/example/lunarclock
+          cat > app/src/main/java/com/example/lunarclock/GreetingReceiver.kt <<'LUNAR_EOF'
+          package com.example.lunarclock
+
+          import android.content.BroadcastReceiver
+          import android.content.Context
+          import android.content.Intent
+
+          class GreetingReceiver : BroadcastReceiver() {
+              override fun onReceive(context: Context, intent: Intent) {
+                  when (intent.action) {
+                      Greeting.ACTION -> {
+                          Greeting.show(context)
+                          Greeting.schedule(context) // 排明年
+                      }
+                      // 重開機或 App 更新後，鬧鐘會消失，要重新設定
+                      Intent.ACTION_BOOT_COMPLETED,
+                      Intent.ACTION_MY_PACKAGE_REPLACED -> Greeting.schedule(context)
+                  }
+              }
+          }
           LUNAR_EOF
           mkdir -p app/src/main/java/com/example/lunarclock
           cat > app/src/main/java/com/example/lunarclock/LunarClockWidget.kt <<'LUNAR_EOF'
@@ -106,6 +215,7 @@ jobs:
                   appWidgetManager: AppWidgetManager,
                   appWidgetIds: IntArray
               ) {
+                  Greeting.schedule(context) // 順便確保聖誕節推播的鬧鐘還在
                   for (id in appWidgetIds) {
                       appWidgetManager.updateAppWidget(id, buildViews(context))
                   }
@@ -201,22 +311,44 @@ jobs:
           cat > app/src/main/java/com/example/lunarclock/MainActivity.kt <<'LUNAR_EOF'
           package com.example.lunarclock
 
+          import android.Manifest
           import android.app.Activity
+          import android.content.pm.PackageManager
+          import android.os.Build
           import android.os.Bundle
           import android.view.Gravity
+          import android.widget.Button
+          import android.widget.LinearLayout
           import android.widget.TextView
 
-          /** 只是一個說明畫面，讓 App 有桌面圖示；真正的功能在 widget。 */
           class MainActivity : Activity() {
               override fun onCreate(savedInstanceState: Bundle?) {
                   super.onCreate(savedInstanceState)
-                  val tv = TextView(this).apply {
-                      text = "長按桌面空白處 → 小工具 → 找「農曆時鐘」加入桌面"
+
+                  // Android 13 以上要使用者允許通知
+                  if (Build.VERSION.SDK_INT >= 33 &&
+                      checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                  ) {
+                      requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
+                  }
+                  Greeting.schedule(this)
+
+                  val info = TextView(this).apply {
+                      text = "長按桌面空白處 → 小工具 → 找「農曆時鐘」加入桌面\n\n每年 12/25 08:00 會推播「聖誕節快樂！」"
                       textSize = 18f
                       gravity = Gravity.CENTER
-                      setPadding(64, 64, 64, 64)
                   }
-                  setContentView(tv)
+                  val test = Button(this).apply {
+                      text = "立即測試推播"
+                      setOnClickListener { Greeting.show(this@MainActivity) }
+                  }
+                  setContentView(LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      gravity = Gravity.CENTER
+                      setPadding(64, 64, 64, 64)
+                      addView(info)
+                      addView(test)
+                  })
               }
           }
           LUNAR_EOF
@@ -237,6 +369,19 @@ jobs:
               <path
                   android:fillColor="#C5C8FF"
                   android:pathData="M52,40h4v16h12v4h-16z" />
+          </vector>
+          LUNAR_EOF
+          mkdir -p app/src/main/res/drawable
+          cat > app/src/main/res/drawable/ic_notify.xml <<'LUNAR_EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="24dp"
+              android:height="24dp"
+              android:viewportWidth="24"
+              android:viewportHeight="24">
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:pathData="M12,2l3.09,6.26L22,9.27l-5,4.87 1.18,6.88L12,17.77l-6.18,3.25L7,14.14 2,9.27l6.91,-1.01L12,2z" />
           </vector>
           LUNAR_EOF
           mkdir -p app/src/main/res/drawable
