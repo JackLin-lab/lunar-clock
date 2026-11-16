@@ -97,76 +97,6 @@ jobs:
           </manifest>
           LUNAR_EOF
           mkdir -p app/src/main/java/com/example/lunarclock
-          cat > app/src/main/java/com/example/lunarclock/Greeting.kt <<'LUNAR_EOF'
-          package com.example.lunarclock
-
-          import android.app.AlarmManager
-          import android.app.NotificationChannel
-          import android.app.NotificationManager
-          import android.app.PendingIntent
-          import android.content.Context
-          import android.content.Intent
-          import android.app.Notification
-          import android.os.Build
-          import java.util.Calendar
-
-          /** 每年 12/25 08:00 推播「聖誕節快樂！」 */
-          object Greeting {
-              const val ACTION = "com.example.lunarclock.GREETING"
-              private const val CHANNEL_ID = "greeting"
-              private const val TITLE = "聖誕節快樂！"
-
-              /** 下一個 12/25 08:00（已過就排明年） */
-              private fun nextTrigger(): Long {
-                  val c = Calendar.getInstance()
-                  c.set(c.get(Calendar.YEAR), Calendar.DECEMBER, 25, 8, 0, 0)
-                  c.set(Calendar.MILLISECOND, 0)
-                  if (c.timeInMillis <= System.currentTimeMillis()) c.add(Calendar.YEAR, 1)
-                  return c.timeInMillis
-              }
-
-              /** 設定（或重新設定）鬧鐘；重複呼叫不會重複推播 */
-              fun schedule(context: Context) {
-                  val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-                  val intent = Intent(context, GreetingReceiver::class.java).setAction(ACTION)
-                  val pi = PendingIntent.getBroadcast(
-                      context, 0, intent,
-                      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                  )
-                  val at = nextTrigger()
-                  try {
-                      if (Build.VERSION.SDK_INT >= 31 && !am.canScheduleExactAlarms()) {
-                          am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi)
-                      } else {
-                          am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi)
-                      }
-                  } catch (e: SecurityException) {
-                      am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi)
-                  }
-              }
-
-              /** 立刻顯示通知 */
-              fun show(context: Context) {
-                  val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                  nm.createNotificationChannel(
-                      NotificationChannel(CHANNEL_ID, "節日問候", NotificationManager.IMPORTANCE_HIGH)
-                  )
-                  val tap = PendingIntent.getActivity(
-                      context, 1, Intent(context, MainActivity::class.java),
-                      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                  )
-                  val n = Notification.Builder(context, CHANNEL_ID)
-                      .setSmallIcon(R.drawable.ic_notify)
-                      .setContentTitle(TITLE)
-                      .setContentText("🎄")
-                      .setContentIntent(tap)
-                      .setAutoCancel(true)
-                      .build()
-                  nm.notify(2025, n)
-              }
-          }
-          LUNAR_EOF
-          mkdir -p app/src/main/java/com/example/lunarclock
           cat > app/src/main/java/com/example/lunarclock/GreetingReceiver.kt <<'LUNAR_EOF'
           package com.example.lunarclock
 
@@ -177,13 +107,25 @@ jobs:
           class GreetingReceiver : BroadcastReceiver() {
               override fun onReceive(context: Context, intent: Intent) {
                   when (intent.action) {
-                      Greeting.ACTION -> {
-                          Greeting.show(context)
-                          Greeting.schedule(context) // 排明年
+                      Reminders.ACTION -> {
+                          val id = intent.getIntExtra("id", -1)
+                          val at = intent.getLongExtra("at", 0L)
+                          val list = Reminders.load(context)
+                          val r = list.firstOrNull { it.id == id } ?: return
+                          if (!r.enabled) return
+                          Reminders.show(context, r)
+                          if (r.repeat) {
+                              // 每年（重複）：排下一次
+                              Reminders.schedule(context, r, maxOf(at, System.currentTimeMillis()))
+                          } else {
+                              // 只提醒一次：發完就停用
+                              r.enabled = false
+                              Reminders.save(context, list)
+                          }
                       }
-                      // 重開機或 App 更新後，鬧鐘會消失，要重新設定
+                      // 重開機或 App 更新後，鬧鐘會消失，要全部重新設定
                       Intent.ACTION_BOOT_COMPLETED,
-                      Intent.ACTION_MY_PACKAGE_REPLACED -> Greeting.schedule(context)
+                      Intent.ACTION_MY_PACKAGE_REPLACED -> Reminders.scheduleAll(context)
                   }
               }
           }
@@ -215,7 +157,7 @@ jobs:
                   appWidgetManager: AppWidgetManager,
                   appWidgetIds: IntArray
               ) {
-                  Greeting.schedule(context) // 順便確保聖誕節推播的鬧鐘還在
+                  Reminders.scheduleAll(context) // 順便確保所有提醒的鬧鐘還在
                   for (id in appWidgetIds) {
                       appWidgetManager.updateAppWidget(id, buildViews(context))
                   }
@@ -313,15 +255,33 @@ jobs:
 
           import android.Manifest
           import android.app.Activity
+          import android.app.AlertDialog
           import android.content.pm.PackageManager
+          import android.graphics.Color
+          import android.graphics.Typeface
+          import android.graphics.drawable.GradientDrawable
           import android.os.Build
           import android.os.Bundle
           import android.view.Gravity
+          import android.view.View
           import android.widget.Button
+          import android.widget.CheckBox
+          import android.widget.EditText
           import android.widget.LinearLayout
+          import android.widget.NumberPicker
+          import android.widget.RadioButton
+          import android.widget.RadioGroup
+          import android.widget.ScrollView
+          import android.widget.Switch
           import android.widget.TextView
+          import android.widget.Toast
 
           class MainActivity : Activity() {
+
+              private lateinit var listBox: LinearLayout
+
+              private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
+
               override fun onCreate(savedInstanceState: Bundle?) {
                   super.onCreate(savedInstanceState)
 
@@ -331,24 +291,457 @@ jobs:
                   ) {
                       requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
                   }
-                  Greeting.schedule(this)
+                  Reminders.scheduleAll(this)
 
-                  val info = TextView(this).apply {
-                      text = "長按桌面空白處 → 小工具 → 找「農曆時鐘」加入桌面\n\n每年 12/25 08:00 會推播「聖誕節快樂！」"
-                      textSize = 18f
-                      gravity = Gravity.CENTER
-                  }
-                  val test = Button(this).apply {
-                      text = "立即測試推播"
-                      setOnClickListener { Greeting.show(this@MainActivity) }
-                  }
-                  setContentView(LinearLayout(this).apply {
+                  val root = LinearLayout(this).apply {
                       orientation = LinearLayout.VERTICAL
-                      gravity = Gravity.CENTER
-                      setPadding(64, 64, 64, 64)
-                      addView(info)
-                      addView(test)
+                      setPadding(dp(16), dp(16), dp(16), dp(16))
+                  }
+                  root.addView(TextView(this).apply {
+                      text = "推播提醒"
+                      textSize = 22f
+                      setTypeface(typeface, Typeface.BOLD)
                   })
+                  root.addView(TextView(this).apply {
+                      text = "桌面 Widget：長按桌面空白處 → 小工具 → 找「農曆時鐘」"
+                      textSize = 13f
+                      setTextColor(Color.GRAY)
+                      setPadding(0, dp(4), 0, dp(8))
+                  })
+                  root.addView(Button(this).apply {
+                      text = "＋ 新增提醒"
+                      setOnClickListener { showEditor(null) }
+                  })
+                  listBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+                  root.addView(
+                      ScrollView(this).apply { addView(listBox) },
+                      LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
+                  )
+                  setContentView(root)
+              }
+
+              override fun onResume() {
+                  super.onResume()
+                  refresh()
+              }
+
+              // ---------- 清單 ----------
+
+              private fun refresh() {
+                  listBox.removeAllViews()
+                  val list = Reminders.load(this)
+                  if (list.isEmpty()) {
+                      listBox.addView(TextView(this).apply {
+                          text = "還沒有提醒，按上方「＋ 新增提醒」"
+                          setPadding(0, dp(16), 0, 0)
+                      })
+                  }
+                  for (r in list) listBox.addView(buildRow(r))
+              }
+
+              private fun buildRow(r: Reminder): View {
+                  val row = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      setPadding(dp(14), dp(12), dp(14), dp(8))
+                      background = GradientDrawable().apply {
+                          setColor(0xFFF0F0F0.toInt())
+                          cornerRadius = dp(14).toFloat()
+                      }
+                      layoutParams = LinearLayout.LayoutParams(
+                          LinearLayout.LayoutParams.MATCH_PARENT,
+                          LinearLayout.LayoutParams.WRAP_CONTENT
+                      ).apply { setMargins(0, dp(10), 0, 0) }
+                  }
+
+                  val top = LinearLayout(this).apply {
+                      orientation = LinearLayout.HORIZONTAL
+                      gravity = Gravity.CENTER_VERTICAL
+                  }
+                  top.addView(
+                      TextView(this).apply {
+                          text = r.text
+                          textSize = 17f
+                          setTypeface(typeface, Typeface.BOLD)
+                      },
+                      LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                  )
+                  top.addView(Switch(this).apply {
+                      isChecked = r.enabled
+                      setOnCheckedChangeListener { _, checked ->
+                          val list = Reminders.load(this@MainActivity)
+                          val target = list.firstOrNull { it.id == r.id }
+                          if (target != null) {
+                              target.enabled = checked
+                              Reminders.save(this@MainActivity, list)
+                              Reminders.schedule(this@MainActivity, target)
+                              refresh()
+                          }
+                      }
+                  })
+                  row.addView(top)
+
+                  row.addView(TextView(this).apply {
+                      text = Reminders.describe(r)
+                      textSize = 13f
+                      setTextColor(Color.DKGRAY)
+                      setPadding(0, dp(2), 0, dp(4))
+                  })
+
+                  val buttons = LinearLayout(this).apply {
+                      orientation = LinearLayout.HORIZONTAL
+                      gravity = Gravity.END
+                  }
+                  fun small(label: String, onClick: () -> Unit) = Button(this).apply {
+                      text = label
+                      textSize = 13f
+                      minHeight = 0
+                      minimumHeight = 0
+                      minWidth = 0
+                      minimumWidth = 0
+                      setPadding(dp(14), dp(6), dp(14), dp(6))
+                      setOnClickListener { onClick() }
+                  }
+                  buttons.addView(small("測試") {
+                      Reminders.show(this, r)
+                      Toast.makeText(this, "已發送測試通知", Toast.LENGTH_SHORT).show()
+                  })
+                  buttons.addView(small("編輯") { showEditor(r) })
+                  buttons.addView(small("刪除") { confirmDelete(r) })
+                  row.addView(buttons)
+                  return row
+              }
+
+              private fun confirmDelete(r: Reminder) {
+                  AlertDialog.Builder(this)
+                      .setTitle("刪除提醒")
+                      .setMessage("確定要刪除「${r.text}」嗎？")
+                      .setNegativeButton("取消", null)
+                      .setPositiveButton("刪除") { _, _ ->
+                          val list = Reminders.load(this)
+                          list.removeAll { it.id == r.id }
+                          Reminders.save(this, list)
+                          Reminders.cancel(this, r.id)
+                          refresh()
+                      }
+                      .show()
+              }
+
+              // ---------- 新增 / 編輯 ----------
+
+              private fun picker(min: Int, max: Int, value: Int): NumberPicker =
+                  NumberPicker(this).apply {
+                      minValue = min
+                      maxValue = max
+                      this.value = value
+                  }
+
+              private fun label(t: String) = TextView(this).apply {
+                  text = t
+                  textSize = 16f
+                  setPadding(dp(8), 0, dp(8), 0)
+              }
+
+              private fun hRow(vararg views: View) = LinearLayout(this).apply {
+                  orientation = LinearLayout.HORIZONTAL
+                  gravity = Gravity.CENTER
+                  for (v in views) addView(v)
+              }
+
+              private fun daysIn(month: Int): Int = when (month) {
+                  2 -> 29
+                  4, 6, 9, 11 -> 30
+                  else -> 31
+              }
+
+              private fun showEditor(existing: Reminder?) {
+                  val box = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      setPadding(dp(20), dp(8), dp(20), dp(8))
+                  }
+
+                  val etText = EditText(this).apply {
+                      hint = "推播內容，例如：聖誕節快樂！"
+                      setText(existing?.text ?: "")
+                  }
+                  val rbSolar = RadioButton(this).apply { text = "國曆"; id = View.generateViewId() }
+                  val rbLunar = RadioButton(this).apply { text = "農曆"; id = View.generateViewId() }
+                  val group = RadioGroup(this).apply {
+                      orientation = LinearLayout.HORIZONTAL
+                      addView(rbSolar)
+                      addView(rbLunar)
+                  }
+                  val monthP = picker(1, 12, existing?.month ?: 1)
+                  val dayP = picker(1, 31, existing?.day ?: 1)
+                  val hourP = picker(0, 23, existing?.hour ?: 8)
+                  val minP = picker(0, 59, existing?.minute ?: 0)
+                  group.setOnCheckedChangeListener { _, checkedId ->
+                      dayP.maxValue = if (checkedId == rbLunar.id) 30 else 31
+                  }
+                  if (existing?.lunar == true) rbLunar.isChecked = true else rbSolar.isChecked = true
+
+                  val repeatCb = CheckBox(this).apply {
+                      text = "每年重複（取消勾選＝只提醒一次）"
+                      isChecked = existing?.repeat ?: true
+                  }
+
+                  box.addView(etText)
+                  box.addView(TextView(this).apply { text = "日期類型"; setPadding(0, dp(12), 0, 0) })
+                  box.addView(group)
+                  box.addView(hRow(monthP, label("月"), dayP, label("日")))
+                  box.addView(TextView(this).apply { text = "時間"; setPadding(0, dp(8), 0, 0) })
+                  box.addView(hRow(hourP, label("時"), minP, label("分")))
+                  box.addView(repeatCb)
+                  box.addView(TextView(this).apply {
+                      text = "農曆為一般月份（不含閏月）。例如農曆正月初一，每年會自動換算成當年的國曆日期。"
+                      textSize = 12f
+                      setTextColor(Color.GRAY)
+                      setPadding(0, dp(4), 0, 0)
+                  })
+
+                  val dialog = AlertDialog.Builder(this)
+                      .setTitle(if (existing == null) "新增提醒" else "編輯提醒")
+                      .setView(ScrollView(this).apply { addView(box) })
+                      .setNegativeButton("取消", null)
+                      .setPositiveButton("儲存", null)
+                      .create()
+                  dialog.show()
+
+                  // 自己處理「儲存」，驗證失敗時對話框不關閉
+                  dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                      val content = etText.text.toString().trim()
+                      val lunar = rbLunar.isChecked
+                      val month = monthP.value
+                      val day = dayP.value
+                      if (content.isEmpty()) {
+                          Toast.makeText(this, "請輸入推播內容", Toast.LENGTH_SHORT).show()
+                          return@setOnClickListener
+                      }
+                      if (!lunar && day > daysIn(month)) {
+                          Toast.makeText(this, "${month}月沒有${day}日", Toast.LENGTH_SHORT).show()
+                          return@setOnClickListener
+                      }
+                      val list = Reminders.load(this)
+                      val item = Reminder(
+                          existing?.id ?: Reminders.newId(this),
+                          content, lunar, month, day, hourP.value, minP.value,
+                          repeatCb.isChecked, true
+                      )
+                      val idx = list.indexOfFirst { it.id == item.id }
+                      if (idx >= 0) list[idx] = item else list.add(item)
+                      Reminders.save(this, list)
+                      Reminders.schedule(this, item)
+                      dialog.dismiss()
+                      refresh()
+                  }
+              }
+          }
+          LUNAR_EOF
+          mkdir -p app/src/main/java/com/example/lunarclock
+          cat > app/src/main/java/com/example/lunarclock/Reminder.kt <<'LUNAR_EOF'
+          package com.example.lunarclock
+
+          /** 一筆推播提醒。lunar=true 代表日期是農曆（month/day 為農曆月日，不含閏月）。 */
+          data class Reminder(
+              val id: Int,
+              var text: String,
+              var lunar: Boolean,
+              var month: Int,
+              var day: Int,
+              var hour: Int,
+              var minute: Int,
+              var repeat: Boolean,   // true=每年重複，false=只提醒一次
+              var enabled: Boolean
+          )
+          LUNAR_EOF
+          mkdir -p app/src/main/java/com/example/lunarclock
+          cat > app/src/main/java/com/example/lunarclock/Reminders.kt <<'LUNAR_EOF'
+          package com.example.lunarclock
+
+          import android.app.AlarmManager
+          import android.app.Notification
+          import android.app.NotificationChannel
+          import android.app.NotificationManager
+          import android.app.PendingIntent
+          import android.content.Context
+          import android.content.Intent
+          import android.icu.util.ChineseCalendar
+          import android.os.Build
+          import org.json.JSONArray
+          import org.json.JSONObject
+          import java.text.SimpleDateFormat
+          import java.util.Calendar
+          import java.util.Date
+          import java.util.Locale
+
+          /** 提醒的儲存、排程（AlarmManager）與發送通知。 */
+          object Reminders {
+              const val ACTION = "com.example.lunarclock.GREETING"
+              private const val CHANNEL_ID = "greeting"
+              private const val PREFS = "reminders"
+              private const val KEY = "list"
+
+              // ---------- 儲存 ----------
+
+              fun load(ctx: Context): MutableList<Reminder> {
+                  val sp = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                  if (!sp.getBoolean("seeded", false)) {
+                      // 第一次使用：預設放一筆「12/25 08:00 聖誕節快樂！」
+                      val seed = mutableListOf(
+                          Reminder(1, "聖誕節快樂！", false, 12, 25, 8, 0, true, true)
+                      )
+                      sp.edit()
+                          .putString(KEY, toJson(seed))
+                          .putInt("next_id", 2)
+                          .putBoolean("seeded", true)
+                          .apply()
+                      return seed
+                  }
+                  val out = mutableListOf<Reminder>()
+                  val arr = JSONArray(sp.getString(KEY, "[]"))
+                  for (i in 0 until arr.length()) {
+                      val o = arr.getJSONObject(i)
+                      out.add(
+                          Reminder(
+                              o.getInt("id"), o.getString("text"), o.getBoolean("lunar"),
+                              o.getInt("month"), o.getInt("day"), o.getInt("hour"), o.getInt("minute"),
+                              o.getBoolean("repeat"), o.getBoolean("enabled")
+                          )
+                      )
+                  }
+                  return out
+              }
+
+              fun save(ctx: Context, list: List<Reminder>) {
+                  ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                      .edit().putString(KEY, toJson(list)).apply()
+              }
+
+              fun newId(ctx: Context): Int {
+                  val sp = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                  val id = sp.getInt("next_id", 2)
+                  sp.edit().putInt("next_id", id + 1).apply()
+                  return id
+              }
+
+              private fun toJson(list: List<Reminder>): String {
+                  val a = JSONArray()
+                  for (r in list) {
+                      a.put(
+                          JSONObject()
+                              .put("id", r.id).put("text", r.text).put("lunar", r.lunar)
+                              .put("month", r.month).put("day", r.day)
+                              .put("hour", r.hour).put("minute", r.minute)
+                              .put("repeat", r.repeat).put("enabled", r.enabled)
+                      )
+                  }
+                  return a.toString()
+              }
+
+              // ---------- 計算下一次時間 ----------
+
+              /** 找出 after 之後最近一次符合的時間（國曆或農曆），找不到回傳 null。 */
+              fun nextTrigger(r: Reminder, after: Long): Long? {
+                  val c = Calendar.getInstance()
+                  c.timeInMillis = after
+                  c.set(Calendar.HOUR_OF_DAY, r.hour)
+                  c.set(Calendar.MINUTE, r.minute)
+                  c.set(Calendar.SECOND, 0)
+                  c.set(Calendar.MILLISECOND, 0)
+                  val lunarCal = if (r.lunar) ChineseCalendar(Locale.TAIWAN) else null
+                  for (i in 0..1500) {
+                      val t = c.timeInMillis
+                      if (t > after) {
+                          if (lunarCal != null) {
+                              lunarCal.timeInMillis = t
+                              if (lunarCal.get(ChineseCalendar.IS_LEAP_MONTH) == 0 &&
+                                  lunarCal.get(ChineseCalendar.MONTH) == r.month - 1 &&
+                                  lunarCal.get(ChineseCalendar.DAY_OF_MONTH) == r.day
+                              ) return t
+                          } else if (c.get(Calendar.MONTH) == r.month - 1 &&
+                              c.get(Calendar.DAY_OF_MONTH) == r.day
+                          ) return t
+                      }
+                      c.add(Calendar.DAY_OF_YEAR, 1)
+                  }
+                  return null
+              }
+
+              // ---------- 排程 ----------
+
+              private fun pending(ctx: Context, id: Int, at: Long): PendingIntent {
+                  val intent = Intent(ctx, GreetingReceiver::class.java)
+                      .setAction(ACTION)
+                      .putExtra("id", id)
+                      .putExtra("at", at)
+                  return PendingIntent.getBroadcast(
+                      ctx, id, intent,
+                      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                  )
+              }
+
+              fun cancel(ctx: Context, id: Int) {
+                  val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+                  am.cancel(pending(ctx, id, 0))
+              }
+
+              /** 設定（或更新）一筆提醒的鬧鐘；停用或找不到日期時取消。 */
+              fun schedule(ctx: Context, r: Reminder, after: Long = System.currentTimeMillis()) {
+                  val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+                  val at = if (r.enabled) nextTrigger(r, after) else null
+                  if (at == null) {
+                      cancel(ctx, r.id)
+                      return
+                  }
+                  val pi = pending(ctx, r.id, at)
+                  try {
+                      if (Build.VERSION.SDK_INT >= 31 && !am.canScheduleExactAlarms()) {
+                          am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi)
+                      } else {
+                          am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi)
+                      }
+                  } catch (e: SecurityException) {
+                      am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi)
+                  }
+              }
+
+              fun scheduleAll(ctx: Context) {
+                  for (r in load(ctx)) schedule(ctx, r)
+              }
+
+              // ---------- 通知 ----------
+
+              fun show(ctx: Context, r: Reminder) {
+                  val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                  nm.createNotificationChannel(
+                      NotificationChannel(CHANNEL_ID, "節日問候", NotificationManager.IMPORTANCE_HIGH)
+                  )
+                  val tap = PendingIntent.getActivity(
+                      ctx, 0, Intent(ctx, MainActivity::class.java),
+                      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                  )
+                  val n = Notification.Builder(ctx, CHANNEL_ID)
+                      .setSmallIcon(R.drawable.ic_notify)
+                      .setContentTitle(r.text)
+                      .setContentIntent(tap)
+                      .setAutoCancel(true)
+                      .build()
+                  nm.notify(r.id, n)
+              }
+
+              // ---------- 顯示用文字 ----------
+
+              fun describe(r: Reminder): String {
+                  val time = String.format(Locale.TAIWAN, "%02d:%02d", r.hour, r.minute)
+                  val kind = if (r.lunar) "農曆" else "國曆"
+                  val rep = if (r.repeat) "每年" else "僅一次"
+                  val head = "$kind ${r.month}月${r.day}日 $time・$rep"
+                  val next = if (r.enabled) nextTrigger(r, System.currentTimeMillis()) else null
+                  val tail = when {
+                      !r.enabled -> if (r.repeat) "已停用" else "已完成或已停用"
+                      next == null -> "找不到下次日期"
+                      else -> "下次：" + SimpleDateFormat("yyyy/MM/dd（E） HH:mm", Locale.TAIWAN).format(Date(next))
+                  }
+                  return head + "\n" + tail
               }
           }
           LUNAR_EOF
