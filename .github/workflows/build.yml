@@ -85,6 +85,21 @@ jobs:
                   </receiver>
 
                   <receiver
+                      android:name=".LunarClockSimpleWidget"
+                      android:exported="true"
+                      android:label="@string/widget_simple_name">
+                      <intent-filter>
+                          <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                          <action android:name="android.intent.action.DATE_CHANGED" />
+                          <action android:name="android.intent.action.TIME_SET" />
+                          <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                      </intent-filter>
+                      <meta-data
+                          android:name="android.appwidget.provider"
+                          android:resource="@xml/widget_lunar_clock_simple_info" />
+                  </receiver>
+
+                  <receiver
                       android:name=".GreetingReceiver"
                       android:exported="false">
                       <intent-filter>
@@ -127,6 +142,65 @@ jobs:
                       Intent.ACTION_BOOT_COMPLETED,
                       Intent.ACTION_MY_PACKAGE_REPLACED -> Reminders.scheduleAll(context)
                   }
+              }
+          }
+          LUNAR_EOF
+          mkdir -p app/src/main/java/com/example/lunarclock
+          cat > app/src/main/java/com/example/lunarclock/LunarClockSimpleWidget.kt <<'LUNAR_EOF'
+          package com.example.lunarclock
+
+          import android.app.PendingIntent
+          import android.appwidget.AppWidgetManager
+          import android.appwidget.AppWidgetProvider
+          import android.content.ComponentName
+          import android.content.Context
+          import android.content.Intent
+          import android.provider.AlarmClock
+          import android.widget.RemoteViews
+
+          /**
+           * 簡易版 Widget：20:07（不含秒）／2026/11/16／星期一／十月初八（農曆不閃爍）
+           */
+          class LunarClockSimpleWidget : AppWidgetProvider() {
+
+              override fun onUpdate(
+                  context: Context,
+                  appWidgetManager: AppWidgetManager,
+                  appWidgetIds: IntArray
+              ) {
+                  Reminders.scheduleAll(context) // 順便確保所有提醒的鬧鐘還在
+                  for (id in appWidgetIds) {
+                      appWidgetManager.updateAppWidget(id, buildViews(context))
+                  }
+              }
+
+              override fun onReceive(context: Context, intent: Intent) {
+                  super.onReceive(context, intent)
+                  when (intent.action) {
+                      Intent.ACTION_DATE_CHANGED,
+                      Intent.ACTION_TIME_CHANGED,
+                      Intent.ACTION_TIMEZONE_CHANGED -> {
+                          val manager = AppWidgetManager.getInstance(context)
+                          val ids = manager.getAppWidgetIds(
+                              ComponentName(context, LunarClockSimpleWidget::class.java)
+                          )
+                          onUpdate(context, manager, ids)
+                      }
+                  }
+              }
+
+              private fun buildViews(context: Context): RemoteViews {
+                  val views = RemoteViews(context.packageName, R.layout.widget_lunar_clock_simple)
+                  // "丙午年 十月初八" → 只取 "十月初八"
+                  views.setTextViewText(R.id.lunar_text, LunarClockWidget.lunarString().substringAfter(" "))
+
+                  val intent = Intent(AlarmClock.ACTION_SHOW_ALARMS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                  val pi = PendingIntent.getActivity(
+                      context, 0, intent,
+                      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                  )
+                  views.setOnClickPendingIntent(R.id.widget_root, pi)
+                  return views
               }
           }
           LUNAR_EOF
@@ -891,11 +965,82 @@ jobs:
               </LinearLayout>
           </LinearLayout>
           LUNAR_EOF
+          mkdir -p app/src/main/res/layout
+          cat > app/src/main/res/layout/widget_lunar_clock_simple.xml <<'LUNAR_EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:id="@+id/widget_root"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:background="@drawable/widget_bg"
+              android:gravity="center"
+              android:orientation="horizontal"
+              android:paddingHorizontal="12dp"
+              android:paddingVertical="6dp">
+
+              <!-- 20:07（粗體，不顯示秒） -->
+              <TextClock
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:format12Hour="HH:mm"
+                  android:format24Hour="HH:mm"
+                  android:includeFontPadding="false"
+                  android:maxLines="1"
+                  android:textColor="#FFFFFF"
+                  android:textSize="40sp"
+                  android:textStyle="bold" />
+
+              <LinearLayout
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:layout_marginStart="14dp"
+                  android:gravity="start"
+                  android:orientation="vertical">
+
+                  <!-- 第一行：2026/11/16 -->
+                  <TextClock
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:format12Hour="yyyy/MM/dd"
+                      android:format24Hour="yyyy/MM/dd"
+                      android:includeFontPadding="false"
+                      android:maxLines="1"
+                      android:textColor="#FFFFFF"
+                      android:textSize="13sp" />
+
+                  <!-- 第二行：星期一 -->
+                  <TextClock
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:layout_marginTop="1dp"
+                      android:format12Hour="EEEE"
+                      android:format24Hour="EEEE"
+                      android:includeFontPadding="false"
+                      android:maxLines="1"
+                      android:textColor="#FFFFFF"
+                      android:textSize="13sp" />
+
+                  <!-- 第三行：十月初八（不閃爍） -->
+                  <TextView
+                      android:id="@+id/lunar_text"
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:layout_marginTop="1dp"
+                      android:includeFontPadding="false"
+                      android:maxLines="1"
+                      android:text="十月初八"
+                      android:textColor="#FFFFFF"
+                      android:textSize="13sp" />
+              </LinearLayout>
+          </LinearLayout>
+          LUNAR_EOF
           mkdir -p app/src/main/res/values
           cat > app/src/main/res/values/strings.xml <<'LUNAR_EOF'
           <resources>
               <string name="app_name">農曆時鐘</string>
               <string name="widget_description">顯示時間（含秒）、西曆日期與農曆</string>
+              <string name="widget_simple_name">農曆時鐘（簡易版）</string>
+              <string name="widget_simple_description">顯示時間（不含秒）、日期、星期與農曆</string>
           </resources>
           LUNAR_EOF
           mkdir -p app/src/main/res/xml
@@ -904,6 +1049,22 @@ jobs:
           <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
               android:description="@string/widget_description"
               android:initialLayout="@layout/widget_lunar_clock"
+              android:minWidth="250dp"
+              android:minHeight="40dp"
+              android:minResizeWidth="180dp"
+              android:minResizeHeight="40dp"
+              android:resizeMode="horizontal|vertical"
+              android:targetCellWidth="4"
+              android:targetCellHeight="1"
+              android:updatePeriodMillis="1800000"
+              android:widgetCategory="home_screen" />
+          LUNAR_EOF
+          mkdir -p app/src/main/res/xml
+          cat > app/src/main/res/xml/widget_lunar_clock_simple_info.xml <<'LUNAR_EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+              android:description="@string/widget_simple_description"
+              android:initialLayout="@layout/widget_lunar_clock_simple"
               android:minWidth="250dp"
               android:minHeight="40dp"
               android:minResizeWidth="180dp"
