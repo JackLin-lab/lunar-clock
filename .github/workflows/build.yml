@@ -100,6 +100,36 @@ jobs:
                   </receiver>
 
                   <receiver
+                      android:name=".PuppyWidget2x2"
+                      android:exported="true"
+                      android:label="@string/widget_puppy_2x2_name">
+                      <intent-filter>
+                          <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                          <action android:name="android.intent.action.DATE_CHANGED" />
+                          <action android:name="android.intent.action.TIME_SET" />
+                          <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                      </intent-filter>
+                      <meta-data
+                          android:name="android.appwidget.provider"
+                          android:resource="@xml/widget_puppy_2x2_info" />
+                  </receiver>
+
+                  <receiver
+                      android:name=".PuppyWidget4x1"
+                      android:exported="true"
+                      android:label="@string/widget_puppy_4x1_name">
+                      <intent-filter>
+                          <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                          <action android:name="android.intent.action.DATE_CHANGED" />
+                          <action android:name="android.intent.action.TIME_SET" />
+                          <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                      </intent-filter>
+                      <meta-data
+                          android:name="android.appwidget.provider"
+                          android:resource="@xml/widget_puppy_4x1_info" />
+                  </receiver>
+
+                  <receiver
                       android:name=".GreetingReceiver"
                       android:exported="false">
                       <intent-filter>
@@ -611,6 +641,77 @@ jobs:
           }
           LUNAR_EOF
           mkdir -p app/src/main/java/com/example/lunarclock
+          cat > app/src/main/java/com/example/lunarclock/PuppyWidget.kt <<'LUNAR_EOF'
+          package com.example.lunarclock
+
+          import android.app.PendingIntent
+          import android.appwidget.AppWidgetManager
+          import android.appwidget.AppWidgetProvider
+          import android.content.ComponentName
+          import android.content.Context
+          import android.content.Intent
+          import android.provider.AlarmClock
+          import android.view.View
+          import android.widget.RemoteViews
+
+          /**
+           * 小狗跳跳時鐘 Widget（共用邏輯）。
+           * - 時間、日期、星期、秒數字由 TextClock 自行更新。
+           * - 小狗跳躍：ViewFlipper 每 0.125 秒切換一張圖（layout 內設定）。
+           * - 農曆：這裡計算；十齋日改用 ViewFlipper 每 0.5 秒閃爍。
+           */
+          abstract class PuppyWidgetBase(private val layoutRes: Int) : AppWidgetProvider() {
+
+              override fun onUpdate(
+                  context: Context,
+                  appWidgetManager: AppWidgetManager,
+                  appWidgetIds: IntArray
+              ) {
+                  Reminders.scheduleAll(context) // 順便確保所有提醒的鬧鐘還在
+                  for (id in appWidgetIds) {
+                      appWidgetManager.updateAppWidget(id, buildViews(context))
+                  }
+              }
+
+              override fun onReceive(context: Context, intent: Intent) {
+                  super.onReceive(context, intent)
+                  when (intent.action) {
+                      Intent.ACTION_DATE_CHANGED,
+                      Intent.ACTION_TIME_CHANGED,
+                      Intent.ACTION_TIMEZONE_CHANGED -> {
+                          val manager = AppWidgetManager.getInstance(context)
+                          val ids = manager.getAppWidgetIds(ComponentName(context, this::class.java))
+                          onUpdate(context, manager, ids)
+                      }
+                  }
+              }
+
+              private fun buildViews(context: Context): RemoteViews {
+                  val views = RemoteViews(context.packageName, layoutRes)
+                  val lunar = LunarClockWidget.lunarString()
+                  views.setTextViewText(R.id.lunar_text, lunar)
+                  views.setTextViewText(R.id.lunar_blink_on, lunar)
+                  views.setTextViewText(R.id.lunar_blink_off, lunar)
+
+                  val fast = LunarClockWidget.isVegetarianDay()
+                  views.setViewVisibility(R.id.lunar_text, if (fast) View.GONE else View.VISIBLE)
+                  views.setViewVisibility(R.id.fast_flipper, if (fast) View.VISIBLE else View.GONE)
+
+                  val intent = Intent(AlarmClock.ACTION_SHOW_ALARMS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                  val pi = PendingIntent.getActivity(
+                      context, 0, intent,
+                      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                  )
+                  views.setOnClickPendingIntent(R.id.widget_root, pi)
+                  return views
+              }
+          }
+
+          class PuppyWidget2x2 : PuppyWidgetBase(R.layout.widget_puppy_2x2)
+
+          class PuppyWidget4x1 : PuppyWidgetBase(R.layout.widget_puppy_4x1)
+          LUNAR_EOF
+          mkdir -p app/src/main/java/com/example/lunarclock
           cat > app/src/main/java/com/example/lunarclock/Reminder.kt <<'LUNAR_EOF'
           package com.example.lunarclock
 
@@ -819,6 +920,473 @@ jobs:
               }
           }
           LUNAR_EOF
+          mkdir -p app/src/main/res/drawable-nodpi
+          base64 -d > app/src/main/res/drawable-nodpi/puppy_0.webp <<'LUNAR_EOF'
+          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
+          AAAA
+          LUNAR_EOF
+          mkdir -p app/src/main/res/drawable-nodpi
+          base64 -d > app/src/main/res/drawable-nodpi/puppy_1.webp <<'LUNAR_EOF'
+          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
+          LUNAR_EOF
+          mkdir -p app/src/main/res/drawable-nodpi
+          base64 -d > app/src/main/res/drawable-nodpi/puppy_2.webp <<'LUNAR_EOF'
+          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
+          LUNAR_EOF
+          mkdir -p app/src/main/res/drawable-nodpi
+          base64 -d > app/src/main/res/drawable-nodpi/puppy_3.webp <<'LUNAR_EOF'
+          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
+          rDciBf4mAAAAAAAAAAAAAAAA
+          LUNAR_EOF
+          mkdir -p app/src/main/res/drawable-nodpi
+          base64 -d > app/src/main/res/drawable-nodpi/puppy_4.webp <<'LUNAR_EOF'
+          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
+          LUNAR_EOF
+          mkdir -p app/src/main/res/drawable-nodpi
+          base64 -d > app/src/main/res/drawable-nodpi/puppy_5.webp <<'LUNAR_EOF'
+          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
+          F73tB/K0mIAAAAAAAAA=
+          LUNAR_EOF
+          mkdir -p app/src/main/res/drawable-nodpi
+          base64 -d > app/src/main/res/drawable-nodpi/puppy_6.webp <<'LUNAR_EOF'
+          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
+          WkUoV//7SYf4FugAAAAAAAA=
+          LUNAR_EOF
+          mkdir -p app/src/main/res/drawable-nodpi
+          base64 -d > app/src/main/res/drawable-nodpi/puppy_7.webp <<'LUNAR_EOF'
+          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
+          LUNAR_EOF
           mkdir -p app/src/main/res/drawable
           cat > app/src/main/res/drawable/ic_launcher.xml <<'LUNAR_EOF'
           <?xml version="1.0" encoding="utf-8"?>
@@ -850,6 +1418,36 @@ jobs:
                   android:fillColor="#FFFFFF"
                   android:pathData="M12,2l3.09,6.26L22,9.27l-5,4.87 1.18,6.88L12,17.77l-6.18,3.25L7,14.14 2,9.27l6.91,-1.01L12,2z" />
           </vector>
+          LUNAR_EOF
+          mkdir -p app/src/main/res/drawable
+          cat > app/src/main/res/drawable/puppy_bg.xml <<'LUNAR_EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+              <!-- 天空 -->
+              <item>
+                  <shape android:shape="rectangle">
+                      <gradient
+                          android:angle="270"
+                          android:endColor="#CFF3FF"
+                          android:startColor="#38A9FF" />
+                      <corners android:radius="22dp" />
+                  </shape>
+              </item>
+              <!-- 草地 -->
+              <item
+                  android:height="28dp"
+                  android:gravity="bottom">
+                  <shape android:shape="rectangle">
+                      <gradient
+                          android:angle="270"
+                          android:endColor="#52C224"
+                          android:startColor="#9CEC6A" />
+                      <corners
+                          android:bottomLeftRadius="22dp"
+                          android:bottomRightRadius="22dp" />
+                  </shape>
+              </item>
+          </layer-list>
           LUNAR_EOF
           mkdir -p app/src/main/res/drawable
           cat > app/src/main/res/drawable/widget_bg.xml <<'LUNAR_EOF'
@@ -1034,6 +1632,365 @@ jobs:
               </LinearLayout>
           </LinearLayout>
           LUNAR_EOF
+          mkdir -p app/src/main/res/layout
+          cat > app/src/main/res/layout/widget_puppy_2x2.xml <<'LUNAR_EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:id="@+id/widget_root"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:background="@drawable/puppy_bg"
+              android:gravity="center_horizontal"
+              android:orientation="vertical"
+              android:paddingHorizontal="6dp"
+              android:paddingTop="8dp"
+              android:paddingBottom="2dp">
+
+              <LinearLayout
+                  android:layout_width="match_parent"
+                  android:layout_height="0dp"
+                  android:layout_weight="1"
+                  android:gravity="center"
+                  android:orientation="vertical">
+
+                  <TextClock
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:format12Hour="yyyy/MM/dd EEEE"
+                      android:format24Hour="yyyy/MM/dd EEEE"
+                      android:includeFontPadding="false"
+                      android:maxLines="1"
+                      android:shadowColor="#2F6F3A"
+                      android:shadowDx="0"
+                      android:shadowDy="1"
+                      android:shadowRadius="4"
+                      android:textColor="#FFFFFF"
+                      android:textSize="13sp" />
+
+                  <TextClock
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:format12Hour="HH:mm"
+                      android:format24Hour="HH:mm"
+                      android:includeFontPadding="false"
+                      android:maxLines="1"
+                      android:shadowColor="#2F6F3A"
+                      android:shadowDx="0"
+                      android:shadowDy="1"
+                      android:shadowRadius="4"
+                      android:textColor="#FFFFFF"
+                      android:textSize="36sp"
+                      android:textStyle="bold" />
+
+                  <!-- 農曆（十齋日每 0.5 秒閃爍） -->
+                  <FrameLayout
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:layout_marginTop="1dp">
+
+                      <TextView
+                          android:id="@+id/lunar_text"
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
+                          android:includeFontPadding="false"
+                      android:maxLines="1"
+                      android:shadowColor="#2F6F3A"
+                      android:shadowDx="0"
+                      android:shadowDy="1"
+                      android:shadowRadius="4"
+                      android:textColor="#FFFFFF"
+                          android:text="丙午年 十月初八"
+                          android:textSize="13sp" />
+
+                      <ViewFlipper
+                          android:id="@+id/fast_flipper"
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
+                          android:autoStart="true"
+                          android:flipInterval="500"
+                          android:visibility="gone">
+
+                          <TextView
+                              android:id="@+id/lunar_blink_on"
+                              android:layout_width="wrap_content"
+                              android:layout_height="wrap_content"
+                              android:includeFontPadding="false"
+                      android:maxLines="1"
+                      android:shadowColor="#2F6F3A"
+                      android:shadowDx="0"
+                      android:shadowDy="1"
+                      android:shadowRadius="4"
+                      android:textColor="#FFFFFF"
+                              android:text="丙午年 十月初八"
+                              android:textSize="13sp" />
+
+                          <TextView
+                              android:id="@+id/lunar_blink_off"
+                              android:layout_width="wrap_content"
+                              android:layout_height="wrap_content"
+                              android:includeFontPadding="false"
+                              android:maxLines="1"
+                              android:text="丙午年 十月初八"
+                              android:textColor="#00FFFFFF"
+                              android:textSize="13sp" />
+                      </ViewFlipper>
+                  </FrameLayout>
+
+              </LinearLayout>
+
+              <!-- 小狗跳躍＋秒數字（ViewFlipper 每 0.125 秒換一張，8 張＝1 秒一跳） -->
+              <LinearLayout
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:gravity="bottom"
+                  android:orientation="horizontal">
+
+                  <ViewFlipper
+                      android:layout_width="54dp"
+                      android:layout_height="57dp"
+                      android:autoStart="true"
+                      android:flipInterval="125">
+                      <ImageView
+                          android:layout_width="54dp"
+                          android:layout_height="57dp"
+                          android:scaleType="fitCenter"
+                          android:src="@drawable/puppy_0" />
+                      <ImageView
+                          android:layout_width="54dp"
+                          android:layout_height="57dp"
+                          android:scaleType="fitCenter"
+                          android:src="@drawable/puppy_1" />
+                      <ImageView
+                          android:layout_width="54dp"
+                          android:layout_height="57dp"
+                          android:scaleType="fitCenter"
+                          android:src="@drawable/puppy_2" />
+                      <ImageView
+                          android:layout_width="54dp"
+                          android:layout_height="57dp"
+                          android:scaleType="fitCenter"
+                          android:src="@drawable/puppy_3" />
+                      <ImageView
+                          android:layout_width="54dp"
+                          android:layout_height="57dp"
+                          android:scaleType="fitCenter"
+                          android:src="@drawable/puppy_4" />
+                      <ImageView
+                          android:layout_width="54dp"
+                          android:layout_height="57dp"
+                          android:scaleType="fitCenter"
+                          android:src="@drawable/puppy_5" />
+                      <ImageView
+                          android:layout_width="54dp"
+                          android:layout_height="57dp"
+                          android:scaleType="fitCenter"
+                          android:src="@drawable/puppy_6" />
+                      <ImageView
+                          android:layout_width="54dp"
+                          android:layout_height="57dp"
+                          android:scaleType="fitCenter"
+                          android:src="@drawable/puppy_7" />
+                  </ViewFlipper>
+
+                  <TextClock
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:layout_marginStart="-6dp"
+                      android:layout_marginBottom="12dp"
+                      android:format12Hour="ss"
+                      android:format24Hour="ss"
+                      android:includeFontPadding="false"
+                      android:maxLines="1"
+                      android:shadowColor="#A8820A"
+                      android:shadowDx="3"
+                      android:shadowDy="3"
+                      android:shadowRadius="1"
+                      android:textColor="#FFD21F"
+                      android:textSize="30sp"
+                      android:textStyle="bold" />
+              </LinearLayout>
+          </LinearLayout>
+          LUNAR_EOF
+          mkdir -p app/src/main/res/layout
+          cat > app/src/main/res/layout/widget_puppy_4x1.xml <<'LUNAR_EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:id="@+id/widget_root"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:background="@drawable/puppy_bg"
+              android:gravity="center_vertical"
+              android:orientation="horizontal"
+              android:paddingHorizontal="10dp"
+              android:paddingTop="4dp"
+              android:paddingBottom="2dp">
+
+              <!-- 小狗跳躍＋秒數字（ViewFlipper 每 0.125 秒換一張，8 張＝1 秒一跳） -->
+              <LinearLayout
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:gravity="bottom"
+                  android:orientation="horizontal">
+
+                  <ViewFlipper
+                      android:layout_width="54dp"
+                      android:layout_height="57dp"
+                      android:autoStart="true"
+                      android:flipInterval="125">
+                      <ImageView
+                          android:layout_width="54dp"
+                          android:layout_height="57dp"
+                          android:scaleType="fitCenter"
+                          android:src="@drawable/puppy_0" />
+                      <ImageView
+                          android:layout_width="54dp"
+                          android:layout_height="57dp"
+                          android:scaleType="fitCenter"
+                          android:src="@drawable/puppy_1" />
+                      <ImageView
+                          android:layout_width="54dp"
+                          android:layout_height="57dp"
+                          android:scaleType="fitCenter"
+                          android:src="@drawable/puppy_2" />
+                      <ImageView
+                          android:layout_width="54dp"
+                          android:layout_height="57dp"
+                          android:scaleType="fitCenter"
+                          android:src="@drawable/puppy_3" />
+                      <ImageView
+                          android:layout_width="54dp"
+                          android:layout_height="57dp"
+                          android:scaleType="fitCenter"
+                          android:src="@drawable/puppy_4" />
+                      <ImageView
+                          android:layout_width="54dp"
+                          android:layout_height="57dp"
+                          android:scaleType="fitCenter"
+                          android:src="@drawable/puppy_5" />
+                      <ImageView
+                          android:layout_width="54dp"
+                          android:layout_height="57dp"
+                          android:scaleType="fitCenter"
+                          android:src="@drawable/puppy_6" />
+                      <ImageView
+                          android:layout_width="54dp"
+                          android:layout_height="57dp"
+                          android:scaleType="fitCenter"
+                          android:src="@drawable/puppy_7" />
+                  </ViewFlipper>
+
+                  <TextClock
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:layout_marginStart="-6dp"
+                      android:layout_marginBottom="12dp"
+                      android:format12Hour="ss"
+                      android:format24Hour="ss"
+                      android:includeFontPadding="false"
+                      android:maxLines="1"
+                      android:shadowColor="#A8820A"
+                      android:shadowDx="3"
+                      android:shadowDy="3"
+                      android:shadowRadius="1"
+                      android:textColor="#FFD21F"
+                      android:textSize="30sp"
+                      android:textStyle="bold" />
+              </LinearLayout>
+
+              <LinearLayout
+                  android:layout_width="0dp"
+                  android:layout_height="wrap_content"
+                  android:layout_marginStart="8dp"
+                  android:layout_weight="1"
+                  android:gravity="center_horizontal"
+                  android:orientation="vertical">
+
+                  <TextClock
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:format12Hour="HH:mm"
+                      android:format24Hour="HH:mm"
+                      android:includeFontPadding="false"
+                      android:maxLines="1"
+                      android:shadowColor="#2F6F3A"
+                      android:shadowDx="0"
+                      android:shadowDy="1"
+                      android:shadowRadius="4"
+                      android:textColor="#FFFFFF"
+                      android:textSize="34sp"
+                      android:textStyle="bold" />
+
+                  <TextClock
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:format12Hour="yyyy/MM/dd EEEE"
+                      android:format24Hour="yyyy/MM/dd EEEE"
+                      android:includeFontPadding="false"
+                      android:maxLines="1"
+                      android:shadowColor="#2F6F3A"
+                      android:shadowDx="0"
+                      android:shadowDy="1"
+                      android:shadowRadius="4"
+                      android:textColor="#FFFFFF"
+                      android:textSize="12sp" />
+
+                  <!-- 農曆（十齋日每 0.5 秒閃爍） -->
+                  <FrameLayout
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:layout_marginTop="1dp">
+
+                      <TextView
+                          android:id="@+id/lunar_text"
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
+                          android:includeFontPadding="false"
+                      android:maxLines="1"
+                      android:shadowColor="#2F6F3A"
+                      android:shadowDx="0"
+                      android:shadowDy="1"
+                      android:shadowRadius="4"
+                      android:textColor="#FFFFFF"
+                          android:text="丙午年 十月初八"
+                          android:textSize="12sp" />
+
+                      <ViewFlipper
+                          android:id="@+id/fast_flipper"
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
+                          android:autoStart="true"
+                          android:flipInterval="500"
+                          android:visibility="gone">
+
+                          <TextView
+                              android:id="@+id/lunar_blink_on"
+                              android:layout_width="wrap_content"
+                              android:layout_height="wrap_content"
+                              android:includeFontPadding="false"
+                      android:maxLines="1"
+                      android:shadowColor="#2F6F3A"
+                      android:shadowDx="0"
+                      android:shadowDy="1"
+                      android:shadowRadius="4"
+                      android:textColor="#FFFFFF"
+                              android:text="丙午年 十月初八"
+                              android:textSize="12sp" />
+
+                          <TextView
+                              android:id="@+id/lunar_blink_off"
+                              android:layout_width="wrap_content"
+                              android:layout_height="wrap_content"
+                              android:includeFontPadding="false"
+                              android:maxLines="1"
+                              android:text="丙午年 十月初八"
+                              android:textColor="#00FFFFFF"
+                              android:textSize="12sp" />
+                      </ViewFlipper>
+                  </FrameLayout>
+
+              </LinearLayout>
+          </LinearLayout>
+          LUNAR_EOF
           mkdir -p app/src/main/res/values
           cat > app/src/main/res/values/strings.xml <<'LUNAR_EOF'
           <resources>
@@ -1041,6 +1998,10 @@ jobs:
               <string name="widget_description">顯示時間（含秒）、西曆日期與農曆</string>
               <string name="widget_simple_name">農曆時鐘（簡易版）</string>
               <string name="widget_simple_description">顯示時間（不含秒）、日期、星期與農曆</string>
+              <string name="widget_puppy_2x2_name">小狗跳跳時鐘 2×2</string>
+              <string name="widget_puppy_2x2_description">小狗跳躍的迷你時鐘：時間、日期、星期、農曆</string>
+              <string name="widget_puppy_4x1_name">小狗跳跳時鐘 4×1</string>
+              <string name="widget_puppy_4x1_description">小狗跳躍的橫條時鐘：時間、日期、星期、農曆</string>
           </resources>
           LUNAR_EOF
           mkdir -p app/src/main/res/xml
@@ -1069,6 +2030,38 @@ jobs:
               android:minHeight="40dp"
               android:minResizeWidth="180dp"
               android:minResizeHeight="40dp"
+              android:resizeMode="horizontal|vertical"
+              android:targetCellWidth="4"
+              android:targetCellHeight="1"
+              android:updatePeriodMillis="1800000"
+              android:widgetCategory="home_screen" />
+          LUNAR_EOF
+          mkdir -p app/src/main/res/xml
+          cat > app/src/main/res/xml/widget_puppy_2x2_info.xml <<'LUNAR_EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+              android:description="@string/widget_puppy_2x2_description"
+              android:initialLayout="@layout/widget_puppy_2x2"
+              android:minWidth="110dp"
+              android:minHeight="110dp"
+              android:minResizeWidth="110dp"
+              android:minResizeHeight="110dp"
+              android:resizeMode="horizontal|vertical"
+              android:targetCellWidth="2"
+              android:targetCellHeight="2"
+              android:updatePeriodMillis="1800000"
+              android:widgetCategory="home_screen" />
+          LUNAR_EOF
+          mkdir -p app/src/main/res/xml
+          cat > app/src/main/res/xml/widget_puppy_4x1_info.xml <<'LUNAR_EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+              android:description="@string/widget_puppy_4x1_description"
+              android:initialLayout="@layout/widget_puppy_4x1"
+              android:minWidth="250dp"
+              android:minHeight="70dp"
+              android:minResizeWidth="250dp"
+              android:minResizeHeight="70dp"
               android:resizeMode="horizontal|vertical"
               android:targetCellWidth="4"
               android:targetCellHeight="1"
