@@ -2391,7 +2391,7 @@ jobs:
                   android:includeFontPadding="false"
                   android:maxLines="1"
                   android:textColor="#FFFFFF"
-                  android:textSize="28sp"
+                  android:textSize="28dp"
                   android:textStyle="bold" />
 
               <LinearLayout
@@ -2410,7 +2410,7 @@ jobs:
                       android:includeFontPadding="false"
                       android:maxLines="1"
                       android:textColor="#FFFFFF"
-                      android:textSize="12sp" />
+                      android:textSize="12dp" />
 
                   <!-- 第二行：星期一 -->
                   <TextClock
@@ -2422,7 +2422,7 @@ jobs:
                       android:includeFontPadding="false"
                       android:maxLines="1"
                       android:textColor="#FFFFFF"
-                      android:textSize="12sp" />
+                      android:textSize="12dp" />
 
                   <!-- 第三行：丙午年 十月初八（十齋日改為每 0.5 秒閃爍） -->
                   <FrameLayout
@@ -2438,7 +2438,7 @@ jobs:
                           android:maxLines="1"
                           android:text="丙午年 十月初八"
                           android:textColor="#FFFFFF"
-                          android:textSize="12sp" />
+                          android:textSize="12dp" />
 
                       <ViewFlipper
                           android:id="@+id/fast_flipper"
@@ -2457,7 +2457,7 @@ jobs:
                               android:maxLines="1"
                               android:text="丙午年 十月初八"
                               android:textColor="#FFFFFF"
-                              android:textSize="12sp" />
+                              android:textSize="12dp" />
 
                           <!-- 滅（文字透明但保留位置，版面不跳動；不能用 invisible，ViewFlipper 會強制改成顯示） -->
                           <TextView
@@ -2468,7 +2468,7 @@ jobs:
                               android:maxLines="1"
                               android:text="丙午年 十月初八"
                               android:textColor="#00FFFFFF"
-                              android:textSize="12sp" />
+                              android:textSize="12dp" />
                       </ViewFlipper>
                   </FrameLayout>
               </LinearLayout>
@@ -2496,7 +2496,7 @@ jobs:
                   android:includeFontPadding="false"
                   android:maxLines="1"
                   android:textColor="#FFFFFF"
-                  android:textSize="40sp"
+                  android:textSize="40dp"
                   android:textStyle="bold" />
 
               <LinearLayout
@@ -2515,7 +2515,7 @@ jobs:
                       android:includeFontPadding="false"
                       android:maxLines="1"
                       android:textColor="#FFFFFF"
-                      android:textSize="13sp" />
+                      android:textSize="13dp" />
 
                   <!-- 第二行：星期一 -->
                   <TextClock
@@ -2527,7 +2527,7 @@ jobs:
                       android:includeFontPadding="false"
                       android:maxLines="1"
                       android:textColor="#FFFFFF"
-                      android:textSize="13sp" />
+                      android:textSize="13dp" />
 
                   <!-- 第三行：十月初八（不閃爍） -->
                   <TextView
@@ -2539,7 +2539,7 @@ jobs:
                       android:maxLines="1"
                       android:text="十月初八"
                       android:textColor="#FFFFFF"
-                      android:textSize="13sp" />
+                      android:textSize="13dp" />
               </LinearLayout>
           </LinearLayout>
           LUNAR_EOF
@@ -2576,7 +2576,7 @@ jobs:
                       android:shadowDy="1"
                       android:shadowRadius="4"
                       android:textColor="#FFFFFF"
-                      android:textSize="13sp" />
+                      android:textSize="13dp" />
 
                   <!-- 20:07（白）＋ :31（黃色秒數） -->
                   <LinearLayout
@@ -2596,7 +2596,7 @@ jobs:
                       android:shadowDy="1"
                       android:shadowRadius="4"
                       android:textColor="#FFFFFF"
-                          android:textSize="34sp"
+                          android:textSize="34dp"
                           android:textStyle="bold" />
 
                       <TextClock
@@ -2611,7 +2611,7 @@ jobs:
                           android:shadowDy="2"
                           android:shadowRadius="1"
                           android:textColor="#FFD21F"
-                          android:textSize="24sp"
+                          android:textSize="24dp"
                           android:textStyle="bold" />
                   </LinearLayout>
 
@@ -2633,7 +2633,7 @@ jobs:
                       android:shadowRadius="4"
                       android:textColor="#FFFFFF"
                           android:text="丙午年 十月初八"
-                          android:textSize="13sp" />
+                          android:textSize="13dp" />
 
                       <ViewFlipper
                           android:id="@+id/fast_flipper"
@@ -2655,7 +2655,7 @@ jobs:
                       android:shadowRadius="4"
                       android:textColor="#FFFFFF"
                               android:text="丙午年 十月初八"
-                              android:textSize="13sp" />
+                              android:textSize="13dp" />
 
                           <TextView
                               android:id="@+id/lunar_blink_off"
@@ -2665,7 +2665,7 @@ jobs:
                               android:maxLines="1"
                               android:text="丙午年 十月初八"
                               android:textColor="#00FFFFFF"
-                              android:textSize="13sp" />
+                              android:textSize="13dp" />
                       </ViewFlipper>
                   </FrameLayout>
 
@@ -2677,9 +2677,9 @@ jobs:
                   android:layout_height="wrap_content">
 
                   <ImageView
-                      android:layout_width="match_parent"
+                      android:layout_width="140dp"
                       android:layout_height="74dp"
-                      android:layout_gravity="bottom"
+                      android:layout_gravity="bottom|center_horizontal"
                       android:layout_marginBottom="6dp"
                       android:scaleType="fitXY"
                       android:src="@drawable/rainbow" />
@@ -2820,9 +2820,9 @@ jobs:
                   android:layout_height="wrap_content">
 
                   <ImageView
-                      android:layout_width="match_parent"
+                      android:layout_width="170dp"
                       android:layout_height="74dp"
-                      android:layout_gravity="bottom"
+                      android:layout_gravity="bottom|start"
                       android:layout_marginBottom="6dp"
                       android:scaleType="fitXY"
                       android:src="@drawable/rainbow" />
@@ -2945,9 +2945,9 @@ jobs:
               <LinearLayout
                   android:layout_width="0dp"
                   android:layout_height="wrap_content"
-                  android:layout_marginStart="6dp"
+                  android:layout_marginStart="-26dp"
                   android:layout_weight="1"
-                  android:gravity="center_horizontal"
+                  android:gravity="start|center_vertical"
                   android:orientation="vertical">
 
                   <!-- 20:07（白）＋ :31（黃色秒數） -->
@@ -2968,7 +2968,7 @@ jobs:
                       android:shadowDy="1"
                       android:shadowRadius="4"
                       android:textColor="#FFFFFF"
-                          android:textSize="32sp"
+                          android:textSize="32dp"
                           android:textStyle="bold" />
 
                       <TextClock
@@ -2983,7 +2983,7 @@ jobs:
                           android:shadowDy="2"
                           android:shadowRadius="1"
                           android:textColor="#FFD21F"
-                          android:textSize="22sp"
+                          android:textSize="22dp"
                           android:textStyle="bold" />
                   </LinearLayout>
 
@@ -2999,7 +2999,7 @@ jobs:
                       android:shadowDy="1"
                       android:shadowRadius="4"
                       android:textColor="#FFFFFF"
-                      android:textSize="12sp" />
+                      android:textSize="12dp" />
 
                   <!-- 農曆（十齋日每 0.5 秒閃爍） -->
                   <FrameLayout
@@ -3019,7 +3019,7 @@ jobs:
                       android:shadowRadius="4"
                       android:textColor="#FFFFFF"
                           android:text="丙午年 十月初八"
-                          android:textSize="12sp" />
+                          android:textSize="12dp" />
 
                       <ViewFlipper
                           android:id="@+id/fast_flipper"
@@ -3041,7 +3041,7 @@ jobs:
                       android:shadowRadius="4"
                       android:textColor="#FFFFFF"
                               android:text="丙午年 十月初八"
-                              android:textSize="12sp" />
+                              android:textSize="12dp" />
 
                           <TextView
                               android:id="@+id/lunar_blink_off"
@@ -3051,7 +3051,7 @@ jobs:
                               android:maxLines="1"
                               android:text="丙午年 十月初八"
                               android:textColor="#00FFFFFF"
-                              android:textSize="12sp" />
+                              android:textSize="12dp" />
                       </ViewFlipper>
                   </FrameLayout>
 
