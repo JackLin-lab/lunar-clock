@@ -2638,6 +2638,7 @@ jobs:
                   <LinearLayout
                       android:layout_width="wrap_content"
                       android:layout_height="wrap_content"
+                      android:layout_gravity="bottom|center_horizontal"
                       android:gravity="bottom"
                       android:orientation="horizontal">
 
@@ -2747,24 +2748,6 @@ jobs:
                           android:scaleType="fitCenter"
                           android:src="@drawable/puppybig_9" />
                       </ViewFlipper>
-
-                      <!-- 黃色秒數：在大狗右邊的彩虹裡 -->
-                      <TextClock
-                          android:layout_width="wrap_content"
-                          android:layout_height="wrap_content"
-                          android:layout_marginStart="-6dp"
-                          android:layout_marginBottom="16dp"
-                          android:format12Hour="ss"
-                          android:format24Hour="ss"
-                          android:includeFontPadding="false"
-                          android:maxLines="1"
-                          android:shadowColor="#A8820A"
-                          android:shadowDx="2"
-                          android:shadowDy="2"
-                          android:shadowRadius="1"
-                          android:textColor="#FFD21F"
-                          android:textSize="24dp"
-                          android:textStyle="bold" />
                   </LinearLayout>
               </FrameLayout>
           </LinearLayout>
