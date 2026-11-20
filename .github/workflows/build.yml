@@ -2260,8 +2260,9 @@ jobs:
                   <shape android:shape="rectangle">
                       <gradient
                           android:angle="270"
-                          android:endColor="#CFF3FF"
-                          android:startColor="#38A9FF" />
+                          android:centerColor="#2E9BFF"
+                          android:endColor="#7FDDFF"
+                          android:startColor="#0A47E0" />
                       <corners android:radius="22dp" />
                   </shape>
               </item>
@@ -2291,38 +2292,38 @@ jobs:
               android:viewportHeight="100">
               <path
                   android:pathData="M4,100 a96,96 0 0 1 192,0"
-                  android:strokeColor="#FF5A5A"
-                  android:strokeAlpha="0.6"
+                  android:strokeColor="#FF2A2A"
+                  android:strokeAlpha="0.95"
                   android:strokeWidth="6" />
               <path
                   android:pathData="M10,100 a90,90 0 0 1 180,0"
-                  android:strokeColor="#FF9A3C"
-                  android:strokeAlpha="0.6"
+                  android:strokeColor="#FF8A00"
+                  android:strokeAlpha="0.95"
                   android:strokeWidth="6" />
               <path
                   android:pathData="M16,100 a84,84 0 0 1 168,0"
-                  android:strokeColor="#FFE03C"
-                  android:strokeAlpha="0.6"
+                  android:strokeColor="#FFEA00"
+                  android:strokeAlpha="0.95"
                   android:strokeWidth="6" />
               <path
                   android:pathData="M22,100 a78,78 0 0 1 156,0"
-                  android:strokeColor="#5FE05F"
-                  android:strokeAlpha="0.6"
+                  android:strokeColor="#22E022"
+                  android:strokeAlpha="0.95"
                   android:strokeWidth="6" />
               <path
                   android:pathData="M28,100 a72,72 0 0 1 144,0"
-                  android:strokeColor="#3CC8FF"
-                  android:strokeAlpha="0.6"
+                  android:strokeColor="#00E5FF"
+                  android:strokeAlpha="0.95"
                   android:strokeWidth="6" />
               <path
                   android:pathData="M34,100 a66,66 0 0 1 132,0"
-                  android:strokeColor="#5A7DFF"
-                  android:strokeAlpha="0.6"
+                  android:strokeColor="#3D6BFF"
+                  android:strokeAlpha="0.95"
                   android:strokeWidth="6" />
               <path
                   android:pathData="M40,100 a60,60 0 0 1 120,0"
-                  android:strokeColor="#B45AFF"
-                  android:strokeAlpha="0.6"
+                  android:strokeColor="#B03CFF"
+                  android:strokeAlpha="0.95"
                   android:strokeWidth="6" />
           </vector>
           LUNAR_EOF
@@ -2537,7 +2538,7 @@ jobs:
                       android:format24Hour="yyyy/MM/dd EEEE"
                       android:includeFontPadding="false"
                       android:maxLines="1"
-                      android:shadowColor="#2F6F3A"
+                      android:shadowColor="#0A2F8F"
                       android:shadowDx="0"
                       android:shadowDy="1"
                       android:shadowRadius="4"
@@ -2557,7 +2558,7 @@ jobs:
                           android:format24Hour="HH:mm"
                           android:includeFontPadding="false"
                       android:maxLines="1"
-                      android:shadowColor="#2F6F3A"
+                      android:shadowColor="#0A2F8F"
                       android:shadowDx="0"
                       android:shadowDy="1"
                       android:shadowRadius="4"
@@ -2578,7 +2579,7 @@ jobs:
                           android:layout_height="wrap_content"
                           android:includeFontPadding="false"
                       android:maxLines="1"
-                      android:shadowColor="#2F6F3A"
+                      android:shadowColor="#0A2F8F"
                       android:shadowDx="0"
                       android:shadowDy="1"
                       android:shadowRadius="4"
@@ -2600,7 +2601,7 @@ jobs:
                               android:layout_height="wrap_content"
                               android:includeFontPadding="false"
                       android:maxLines="1"
-                      android:shadowColor="#2F6F3A"
+                      android:shadowColor="#0A2F8F"
                       android:shadowDx="0"
                       android:shadowDy="1"
                       android:shadowRadius="4"
@@ -2915,7 +2916,7 @@ jobs:
                           android:format24Hour="HH:mm"
                           android:includeFontPadding="false"
                       android:maxLines="1"
-                      android:shadowColor="#2F6F3A"
+                      android:shadowColor="#0A2F8F"
                       android:shadowDx="0"
                       android:shadowDy="1"
                       android:shadowRadius="4"
@@ -2946,7 +2947,7 @@ jobs:
                       android:format24Hour="yyyy/MM/dd EEEE"
                       android:includeFontPadding="false"
                       android:maxLines="1"
-                      android:shadowColor="#2F6F3A"
+                      android:shadowColor="#0A2F8F"
                       android:shadowDx="0"
                       android:shadowDy="1"
                       android:shadowRadius="4"
@@ -2965,7 +2966,7 @@ jobs:
                           android:layout_height="wrap_content"
                           android:includeFontPadding="false"
                       android:maxLines="1"
-                      android:shadowColor="#2F6F3A"
+                      android:shadowColor="#0A2F8F"
                       android:shadowDx="0"
                       android:shadowDy="1"
                       android:shadowRadius="4"
@@ -2987,7 +2988,7 @@ jobs:
                               android:layout_height="wrap_content"
                               android:includeFontPadding="false"
                       android:maxLines="1"
-                      android:shadowColor="#2F6F3A"
+                      android:shadowColor="#0A2F8F"
                       android:shadowDx="0"
                       android:shadowDy="1"
                       android:shadowRadius="4"
